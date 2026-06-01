@@ -17,7 +17,9 @@ jobs:
         include:
           - { os: windows-latest, name: windows-x86_64 }
           - { os: ubuntu-latest, name: linux-x86_64 }
-          - { os: macos-13, name: macos-x86_64 }   # Intel runner
+          # macOS is arm64-only: GitHub's Intel (macos-13) runners are being
+          # phased out, Nuitka can't cross-compile a universal2 binary, and
+          # Apple is dropping Intel support anyway. Intel Macs are not targeted.
           - { os: macos-14, name: macos-arm64 }    # Apple Silicon runner
 
     steps:

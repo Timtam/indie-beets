@@ -41,6 +41,10 @@ The result behaves exactly like the `beet` command you'd get from PyPI.
 2. Unpack it anywhere.
 3. Run the `beet` executable inside (`beet.exe` on Windows).
 
+> **macOS:** only Apple Silicon (arm64) builds are provided. Intel Macs are not
+> targeted — a universal binary isn't feasible here (Nuitka can't cross-compile),
+> and GitHub's Intel runners are being retired.
+
 A `config.example.yaml` is included in the archive showing the bundled defaults;
 copy what you want into your own beets config. beets reads your personal config
 from the usual location, so your settings survive upgrades.
@@ -61,7 +65,7 @@ from the usual location, so your settings survive upgrades.
 | Python (build)   | 3.12 in CI                                    |
 | ffmpeg           | BtbN `n8.1` static build                      |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| Platforms        | Windows x86_64 · Linux x86_64 · macOS x86_64 · macOS arm64 |
+| Platforms        | Windows x86_64 · Linux x86_64 · macOS arm64 (Apple Silicon) |
 
 The indie-beets **release number is exactly the bundled beets version** (e.g.
 `indie-beets-2.10.0`). It is taken straight from the frozen beets at packaging
