@@ -35,14 +35,18 @@ PLUGIN_RUNTIME_DEPS: dict[str, list[str]] = {
     "lyrics": ["bs4"],
 }
 
-# beets 2.11 *declares* numba/scipy as dependencies but its code never imports
-# them (verified by grepping installed beets + beetsplug, and lap's internals).
-# They are heavy and, in numba/llvmlite's case, notoriously hard to freeze.
-# Tell Nuitka not to follow into them: big size/time win, no functional loss.
-# NOTE: lap and numpy ARE used (beets/autotag/match.py: lap.lapjv on a numpy
-# array drives track-to-item assignment during import) — do not exclude them.
+# Modules we deliberately keep Nuitka from following into:
+# - numba/scipy: beets *declares* them but its code never imports them (verified
+#   by grepping installed beets + beetsplug, and lap's internals). Heavy, and
+#   numba/llvmlite are notoriously hard to freeze. NOTE: lap and numpy ARE used
+#   (beets/autotag/match.py: lap.lapjv on a numpy array drives track-to-item
+#   assignment during import) — do not exclude them.
+# - tkinter: beets is a CLI with no GUI. It gets pulled in transitively (e.g.
+#   via PIL.ImageTk), and on the uv python-build-standalone macOS interpreter its
+#   _tkinter.so links Tcl/Tk 9.0 through an @rpath Nuitka can't resolve, which is
+#   fatal. Excluding it is harmless everywhere and slims the bundle.
 # If a future beets version starts importing numba/scipy, the smoke test catches it.
-UNUSED_HEAVY_DEPS = ["numba", "llvmlite", "scipy"]
+UNUSED_HEAVY_DEPS = ["numba", "llvmlite", "scipy", "tkinter"]
 
 
 def find_vcvars() -> Path | None:
