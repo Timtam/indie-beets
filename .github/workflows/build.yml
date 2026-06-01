@@ -43,8 +43,8 @@ jobs:
         run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
       - name: Package archive
         run: .venv/bin/python scripts/package.py
-      - name: Smoke test
-        run: ./build/indie_beets.dist/beet version
+      - name: Smoke test (GStreamer ReplayGain)
+        run: .venv/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -82,8 +82,8 @@ jobs:
         run: .venv\Scripts\python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
       - name: Package archive
         run: .venv\Scripts\python scripts/package.py
-      - name: Smoke test
-        run: build\indie_beets.dist\beet.exe version
+      - name: Smoke test (GStreamer ReplayGain)
+        run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -148,7 +148,7 @@ jobs:
 
       - name: Smoke test + verify universal
         run: |
-          ./build/indie_beets.dist/beet version
+          .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend ffmpeg
           echo "Architectures in the executable:"
           lipo -archs build/indie_beets.dist/beet
 
