@@ -84,7 +84,30 @@ def setup() -> None:
             _prepend_path("DYLD_LIBRARY_PATH", root)
             if gst_lib.is_dir():
                 _prepend_path("DYLD_LIBRARY_PATH", gst_lib)
+            _reexec_for_loader()
         elif sys.platform.startswith("linux"):
             _prepend_path("LD_LIBRARY_PATH", root)
             if gst_lib.is_dir():
                 _prepend_path("LD_LIBRARY_PATH", gst_lib)
+            _reexec_for_loader()
+
+
+_REEXEC_GUARD = "_INDIE_BEETS_REEXEC"
+
+
+def _reexec_for_loader() -> None:
+    """Restart the process once so the dynamic loader sees LD_LIBRARY_PATH.
+
+    glibc (and dyld) read LD_LIBRARY_PATH/DYLD_LIBRARY_PATH only at process
+    startup, so setting them from Python here is too late to resolve the bundled
+    gstreamer/glib libs when `import gi` dlopens _gi.so. We've just updated the
+    env, so re-exec with it in place; a guard variable prevents an exec loop.
+    """
+    if os.environ.get(_REEXEC_GUARD):
+        return
+    os.environ[_REEXEC_GUARD] = "1"
+    try:
+        os.execv(sys.executable, [sys.executable, *sys.argv[1:]])
+    except OSError:
+        # Best effort: if re-exec fails, continue and hope the loader copes.
+        pass
