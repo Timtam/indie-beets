@@ -70,6 +70,13 @@ def setup() -> None:
             _prepend_path("GI_TYPELIB_PATH", typelib_dir)
         if gst_bin.is_dir():
             _prepend_path("PATH", gst_bin)
+            # On Windows, PATH alone is NOT enough: since Python 3.8 the loader
+            # ignores PATH when resolving an extension module's dependent DLLs.
+            # _gi.pyd needs glib/gobject DLLs from the GStreamer bin, so register
+            # it explicitly. (PATH is still needed too: typelib-referenced DLLs
+            # are loaded by GModule, which does use PATH.)
+            if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
+                os.add_dll_directory(str(gst_bin))
         # Shared libraries the plugins link against.
         if sys.platform == "darwin" and gst_lib.is_dir():
             _prepend_path("DYLD_LIBRARY_PATH", gst_lib)

@@ -63,9 +63,10 @@ from the usual location, so your settings survive upgrades.
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
 | **beets**        | **2.10.0** (the release number tracks this)   |
-| Python (build)   | 3.12 in CI                                    |
+| Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
+| GStreamer        | 1.26.11 (MSVC) — **Windows only** so far      |
 | Platforms        | Windows x86_64 · Linux x86_64 · macOS universal2 (Intel + Apple Silicon) |
 
 The indie-beets **release number is exactly the bundled beets version** (e.g.
@@ -114,10 +115,13 @@ may require additional bundling work; open an issue if one you need is missing.)
 |------|---------|---------|
 | `ffmpeg` / `ffprobe` | `convert`, `replaygain` | Transcoding and EBU R128 loudness analysis. |
 | `fpcalc` (Chromaprint) | `chroma` | Acoustic fingerprinting for tag lookup. |
+| **GStreamer** (Windows) | `gstreamer` ReplayGain backend, `bpd` | Full GStreamer runtime + plugins + PyGObject. |
 
-> GStreamer bundling (for the `gstreamer` ReplayGain backend and the `bpd`
-> playback server) is planned but not yet included — ffmpeg covers transcoding
-> and ReplayGain, and `fpcalc` decodes audio for fingerprinting on its own.
+> **GStreamer is bundled on Windows only** for now. The everyday workflow doesn't
+> need it — ffmpeg covers transcoding and ReplayGain, and `fpcalc` decodes audio
+> for fingerprinting on its own — so it stays opt-in via your config
+> (`replaygain.backend: gstreamer` or the `bpd` plugin). Linux/macOS GStreamer
+> bundling is planned.
 
 ---
 
@@ -147,6 +151,7 @@ archive in `dist/`.
 | `src/indie_beets/runtime_env.py` | Points beets at the bundled binaries at startup |
 | `scripts/build.py` | Nuitka build driver |
 | `scripts/stage_binaries.py` | Downloads/stages ffmpeg, fpcalc (pinned versions) |
+| `scripts/stage_gstreamer.py` | Wires the GStreamer MSVC runtime into the build + bundle (Windows) |
 | `scripts/lipo_merge.py` | Fuses the arm64 + x86_64 builds into a macOS universal2 tree |
 | `scripts/package.py` | Builds the release archive (named after the beets version) |
 | `config/default_config.yaml` | Sensible bundled defaults |
@@ -158,7 +163,8 @@ archive in `dist/`.
 - [x] Bundled ffmpeg + fpcalc, wired up automatically at runtime
 - [x] Multi-OS CI matrix and release archives
 - [x] External plugins: beetcamp + beets-filetote
-- [ ] GStreamer bundling (`gstreamer` ReplayGain backend, `bpd`)
+- [x] GStreamer bundling on Windows (`gstreamer` ReplayGain backend, `bpd`)
+- [ ] GStreamer bundling on Linux + macOS
 - [ ] Code signing / notarization (macOS, Windows)
 - [ ] Track beets 2.11.x once beets-filetote is compatible
 

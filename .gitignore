@@ -13,3 +13,8 @@ nuitka-crash-report.xml
 # Staged batteries (downloaded by scripts/stage_binaries.py)
 /bin/
 /gstreamer/
+
+# Local GStreamer PoC scratch (MSIs, extracted SDK)
+/.gst-poc/
+# GStreamer staging cache (downloaded + extracted MSVC runtime)
+/.gststage/

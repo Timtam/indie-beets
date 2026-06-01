@@ -8,60 +8,77 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Windows + Linux: straightforward single-arch standalone builds.
-  build:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: windows-latest, name: windows-x86_64 }
-          - { os: ubuntu-latest, name: linux-x86_64 }
-
+  # Linux: straightforward single-arch standalone build (no GStreamer).
+  build-linux:
+    name: linux-x86_64
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install Linux build deps
-        if: runner.os == 'Linux'
+      - name: Install build deps
         run: sudo apt-get update && sudo apt-get install -y patchelf ccache
-
       - name: Cache Nuitka
         uses: actions/cache@v4
         with:
-          path: ${{ runner.os == 'Windows' && '~\AppData\Local\Nuitka\Nuitka\Cache' || '~/.cache/Nuitka' }}
-          key: nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml') }}
-
+          path: ~/.cache/Nuitka
+          key: nuitka-linux-${{ hashFiles('pyproject.toml') }}
       - name: Install project + build toolchain
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[build]"
-
       - name: Build standalone bundle (Nuitka)
         run: python scripts/build.py
-
       - name: Stage bundled binaries (ffmpeg, fpcalc)
         run: python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
-
       - name: Package archive
         run: python scripts/package.py
-
-      - name: Smoke test (Windows)
-        if: runner.os == 'Windows'
-        run: build\indie_beets.dist\beet.exe version
-
-      - name: Smoke test (Unix)
-        if: runner.os != 'Windows'
+      - name: Smoke test
         run: ./build/indie_beets.dist/beet version
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: indie-beets-${{ matrix.name }}
+          name: indie-beets-linux-x86_64
+          path: dist/*
+
+  # Windows: standalone build WITH the full GStreamer battery. The official
+  # GStreamer MSVC runtime ships prebuilt PyGObject for CPython 3.13, so we pin
+  # Python 3.13 here (the bindings won't load on 3.12).
+  build-windows:
+    name: windows-x86_64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Cache Nuitka
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\Nuitka\Nuitka\Cache
+          key: nuitka-windows-${{ hashFiles('pyproject.toml') }}
+      - name: Install project + build toolchain
+        run: |
+          python -m venv .venv
+          .venv\Scripts\python -m pip install --upgrade pip
+          .venv\Scripts\pip install -e ".[build]"
+      - name: Prepare GStreamer (gi bindings + DLL/typelib env)
+        run: .venv\Scripts\python scripts/stage_gstreamer.py prepare --venv .venv
+      - name: Build standalone bundle (Nuitka + gi)
+        run: .venv\Scripts\python scripts/build.py --with-gstreamer
+      - name: Stage helper binaries (ffmpeg, fpcalc)
+        run: .venv\Scripts\python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
+      - name: Stage GStreamer runtime into bundle
+        run: .venv\Scripts\python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
+      - name: Package archive
+        run: .venv\Scripts\python scripts/package.py
+      - name: Smoke test
+        run: build\indie_beets.dist\beet.exe version
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: indie-beets-windows-x86_64
           path: dist/*
 
   # macOS: build arm64 natively + x86_64 under Rosetta, then lipo-merge into a
@@ -134,7 +151,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: [build, build-macos]
+    needs: [build-linux, build-windows, build-macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
