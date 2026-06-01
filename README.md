@@ -41,9 +41,10 @@ The result behaves exactly like the `beet` command you'd get from PyPI.
 2. Unpack it anywhere.
 3. Run the `beet` executable inside (`beet.exe` on Windows).
 
-> **macOS:** only Apple Silicon (arm64) builds are provided. Intel Macs are not
-> targeted — a universal binary isn't feasible here (Nuitka can't cross-compile),
-> and GitHub's Intel runners are being retired.
+> **macOS:** the build is a **universal2** binary that runs natively on both
+> Apple Silicon and Intel Macs. (It's produced by building each architecture
+> separately — arm64 natively, x86_64 under Rosetta — and fusing them with `lipo`,
+> since Nuitka itself builds one architecture at a time.)
 
 A `config.example.yaml` is included in the archive showing the bundled defaults;
 copy what you want into your own beets config. beets reads your personal config
@@ -63,9 +64,9 @@ from the usual location, so your settings survive upgrades.
 |------------------|-----------------------------------------------|
 | **beets**        | **2.10.0** (the release number tracks this)   |
 | Python (build)   | 3.12 in CI                                    |
-| ffmpeg           | BtbN `n8.1` static build                      |
+| ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| Platforms        | Windows x86_64 · Linux x86_64 · macOS arm64 (Apple Silicon) |
+| Platforms        | Windows x86_64 · Linux x86_64 · macOS universal2 (Intel + Apple Silicon) |
 
 The indie-beets **release number is exactly the bundled beets version** (e.g.
 `indie-beets-2.10.0`). It is taken straight from the frozen beets at packaging
@@ -146,6 +147,7 @@ archive in `dist/`.
 | `src/indie_beets/runtime_env.py` | Points beets at the bundled binaries at startup |
 | `scripts/build.py` | Nuitka build driver |
 | `scripts/stage_binaries.py` | Downloads/stages ffmpeg, fpcalc (pinned versions) |
+| `scripts/lipo_merge.py` | Fuses the arm64 + x86_64 builds into a macOS universal2 tree |
 | `scripts/package.py` | Builds the release archive (named after the beets version) |
 | `config/default_config.yaml` | Sensible bundled defaults |
 | `.github/workflows/build.yml` | Multi-OS CI matrix |

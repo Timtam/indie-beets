@@ -8,6 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Windows + Linux: straightforward single-arch standalone builds.
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -17,21 +18,14 @@ jobs:
         include:
           - { os: windows-latest, name: windows-x86_64 }
           - { os: ubuntu-latest, name: linux-x86_64 }
-          # macOS is arm64-only: GitHub's Intel (macos-13) runners are being
-          # phased out, Nuitka can't cross-compile a universal2 binary, and
-          # Apple is dropping Intel support anyway. Intel Macs are not targeted.
-          - { os: macos-14, name: macos-arm64 }    # Apple Silicon runner
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          # Pinned: avoids the Nuitka gi/3.14 segfault and the 3.13 MinGW gap,
-          # and is the version the GStreamer (gi) phase will target.
           python-version: "3.12"
 
-      # Nuitka needs patchelf to build standalone bundles on Linux.
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y patchelf ccache
@@ -51,8 +45,6 @@ jobs:
         run: python scripts/build.py
 
       - name: Stage bundled binaries (ffmpeg, fpcalc)
-        # NOTE: macOS pulls ffmpeg from evermeet.cx. Confirm the arm64 runner
-        # gets a native arm64 build; if not, switch the macos-arm64 source.
         run: python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
 
       - name: Package archive
@@ -72,9 +64,64 @@ jobs:
           name: indie-beets-${{ matrix.name }}
           path: dist/*
 
+  # macOS: build arm64 natively + x86_64 under Rosetta, then lipo-merge into a
+  # single universal2 bundle that runs on both Intel and Apple Silicon.
+  build-macos:
+    name: macos-universal
+    runs-on: macos-14   # Apple Silicon; has Rosetta 2 for the x86_64 build
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- arm64 (native) ---
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build arm64 bundle
+        run: |
+          python -m venv .venv-arm64
+          .venv-arm64/bin/python -m pip install --upgrade pip
+          .venv-arm64/bin/pip install -e ".[build]"
+          .venv-arm64/bin/python scripts/build.py --output-dir build/arm64
+
+      # --- x86_64 (under Rosetta, via uv-managed x86_64 CPython) ---
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Build x86_64 bundle (Rosetta)
+        run: |
+          arch -x86_64 uv python install 3.12
+          arch -x86_64 uv venv --python 3.12 .venv-x64
+          arch -x86_64 uv pip install --python .venv-x64/bin/python -e ".[build]"
+          arch -x86_64 .venv-x64/bin/python scripts/build.py --output-dir build/x86_64
+
+      # --- fuse + batteries + package ---
+      - name: lipo-merge into universal2
+        run: |
+          .venv-arm64/bin/python scripts/lipo_merge.py \
+            --arm64 build/arm64/indie_beets.dist \
+            --x86_64 build/x86_64/indie_beets.dist \
+            --out build/indie_beets.dist
+
+      - name: Stage universal binaries (ffmpeg, fpcalc)
+        run: .venv-arm64/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin --universal
+
+      - name: Package archive
+        run: .venv-arm64/bin/python scripts/package.py --platform-tag macos-universal
+
+      - name: Smoke test + verify universal
+        run: |
+          ./build/indie_beets.dist/beet version
+          echo "Architectures in the executable:"
+          lipo -archs build/indie_beets.dist/beet
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: indie-beets-macos-universal
+          path: dist/*
+
   release:
     name: Publish release
-    needs: build
+    needs: [build, build-macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

@@ -77,6 +77,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Package the built bundle.")
     parser.add_argument("--dist", default=str(DEFAULT_DIST), help="Built .dist folder.")
     parser.add_argument("--out-dir", default=str(REPO_ROOT / "dist"), help="Where to write the archive.")
+    parser.add_argument(
+        "--platform-tag",
+        default=None,
+        help="Override the platform tag in the archive name (e.g. macos-universal).",
+    )
     args = parser.parse_args()
 
     dist = Path(args.dist)
@@ -85,7 +90,8 @@ def main() -> int:
         return 1
 
     add_extras(dist)
-    base_name = f"indie-beets-{release_version()}-{platform_tag()}"
+    tag = args.platform_tag or platform_tag()
+    base_name = f"indie-beets-{release_version()}-{tag}"
     archive = make_archive(dist, Path(args.out_dir), base_name)
     size_mb = archive.stat().st_size / (1024 * 1024)
     print(f"Packaged: {archive} ({size_mb:.1f} MB)")
