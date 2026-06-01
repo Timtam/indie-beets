@@ -46,7 +46,12 @@ jobs:
           docker run --rm \
             -v "$PWD/build/indie_beets.dist:/bundle:ro" \
             -v "$PWD/scripts/smoke_clean.sh:/smoke.sh:ro" \
-            ubuntu:24.04 bash /smoke.sh /bundle gstreamer
+            ubuntu:24.04 bash -c '
+              echo "--- ldd of bundled _gi (rpath should resolve glib) ---"
+              ldd /bundle/gi/_gi*.so 2>&1 | grep -iE "glib|gobject|girepository|not found" || true
+              echo "--- smoke ---"
+              bash /smoke.sh /bundle gstreamer
+            '
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:

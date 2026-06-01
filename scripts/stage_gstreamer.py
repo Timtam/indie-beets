@@ -190,7 +190,32 @@ def _bundle_linux(dist: Path) -> None:
         # copy2 follows the symlink, writing the real content under the soname.
         shutil.copy2(dep, libdir / Path(dep).name)
 
+    # Bake relocatable rpaths so the loader finds everything WITHOUT
+    # LD_LIBRARY_PATH (which glibc only reads at process start). This is the
+    # standard relocatable-bundle approach (cf. auditwheel/linuxdeploy):
+    #   - staged libs find their siblings in the same dir        -> $ORIGIN
+    #   - plugins (in gstreamer-1.0/) find the libs one dir up    -> $ORIGIN/..
+    #   - the bundled gi extension finds the libs                 -> $ORIGIN/../gstreamer/lib
+    for so in libdir.glob("*.so*"):
+        _set_rpath(so, "$ORIGIN")
+    for so in plug_dst.glob("*.so"):
+        _set_rpath(so, "$ORIGIN/..")
+    gi_dir = dist / "gi"
+    if gi_dir.is_dir():
+        for so in gi_dir.rglob("*.so"):
+            _set_rpath(so, "$ORIGIN/../gstreamer/lib")
+
     print(f"Staged {n_plug} plugins + {len(to_copy)} shared libs into {libdir}")
+
+
+def _set_rpath(sofile: Path, rpath: str) -> None:
+    try:
+        subprocess.run(
+            ["patchelf", "--set-rpath", rpath, str(sofile)],
+            check=True, capture_output=True, text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"  patchelf skipped {sofile.name}: {e}")
 
 
 def bundle(dist: Path) -> None:
