@@ -83,14 +83,18 @@ jobs:
           .venv-arm64/bin/pip install -e ".[build]"
           .venv-arm64/bin/python scripts/build.py --output-dir build/arm64
 
-      # --- x86_64 (under Rosetta, via uv-managed x86_64 CPython) ---
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
+      # --- x86_64 (entirely under Rosetta) ---
       - name: Build x86_64 bundle (Rosetta)
         run: |
-          arch -x86_64 uv python install 3.12
-          arch -x86_64 uv venv --python 3.12 .venv-x64
-          arch -x86_64 uv pip install --python .venv-x64/bin/python -e ".[build]"
+          # An arm64 uv can't run under `arch -x86_64` ("Bad CPU type"), so fetch
+          # an x86_64 uv and run the whole x86_64 toolchain (uv + Python + Nuitka
+          # + clang) under Rosetta, where it sees a consistent x86_64 world.
+          curl -LsSf https://github.com/astral-sh/uv/releases/download/0.11.17/uv-x86_64-apple-darwin.tar.gz -o uv-x64.tar.gz
+          tar xzf uv-x64.tar.gz
+          UV="$PWD/uv-x86_64-apple-darwin/uv"
+          arch -x86_64 "$UV" python install 3.12
+          arch -x86_64 "$UV" venv --python 3.12 .venv-x64
+          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python -e ".[build]"
           arch -x86_64 .venv-x64/bin/python scripts/build.py --output-dir build/x86_64
 
       # --- fuse + batteries + package ---
