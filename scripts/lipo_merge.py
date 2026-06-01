@@ -44,7 +44,18 @@ def is_macho(path: Path) -> bool:
         return False
 
 
+def _archs(p: Path) -> set[str]:
+    r = subprocess.run(["lipo", "-archs", str(p)], capture_output=True, text=True)
+    return set(r.stdout.split()) if r.returncode == 0 else set()
+
+
 def lipo_create(a: Path, b: Path, out: Path) -> None:
+    # Some bundled Mach-O files (e.g. GStreamer framework dylibs) are ALREADY
+    # universal in both arch trees — lipo -create would fail on duplicate archs,
+    # so just copy the fat file through.
+    if {"x86_64", "arm64"} <= _archs(a):
+        shutil.copy2(a, out)
+        return
     subprocess.run(["lipo", "-create", str(a), str(b), "-output", str(out)], check=True)
     shutil.copymode(a, out)
 
