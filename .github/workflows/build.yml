@@ -8,17 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Linux: straightforward single-arch standalone build (no GStreamer).
+  # Linux: standalone build WITH GStreamer from distro packages. gi comes from
+  # apt's python3-gi, so we build with the SYSTEM python3 (matching gi's ABI) in
+  # a venv created with --system-site-packages so gi is importable.
   build-linux:
     name: linux-x86_64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install build deps
-        run: sudo apt-get update && sudo apt-get install -y patchelf ccache
+      - name: Install build + GStreamer deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            patchelf ccache python3-venv \
+            python3-gi python3-gi-cairo \
+            gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
       - name: Cache Nuitka
         uses: actions/cache@v4
         with:
@@ -26,14 +32,17 @@ jobs:
           key: nuitka-linux-${{ hashFiles('pyproject.toml') }}
       - name: Install project + build toolchain
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[build]"
-      - name: Build standalone bundle (Nuitka)
-        run: python scripts/build.py
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -e ".[build]"
+      - name: Build standalone bundle (Nuitka + gi)
+        run: .venv/bin/python scripts/build.py --with-gstreamer
       - name: Stage bundled binaries (ffmpeg, fpcalc)
-        run: python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
+        run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
+      - name: Stage GStreamer plugins into bundle
+        run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
       - name: Package archive
-        run: python scripts/package.py
+        run: .venv/bin/python scripts/package.py
       - name: Smoke test
         run: ./build/indie_beets.dist/beet version
       - name: Upload artifact

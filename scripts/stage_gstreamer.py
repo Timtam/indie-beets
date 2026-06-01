@@ -70,7 +70,20 @@ def gst_root() -> Path:
     return root
 
 
+def _linux_plugin_dir() -> Path:
+    """Locate the distro GStreamer plugin directory (apt-installed)."""
+    for cand in sorted(Path("/usr/lib").glob("*/gstreamer-1.0")):
+        if cand.is_dir():
+            return cand
+    raise RuntimeError("GStreamer plugin dir not found under /usr/lib/*/gstreamer-1.0")
+
+
 def prepare(venv: Path) -> None:
+    if sys.platform.startswith("linux"):
+        # gi + GStreamer come from distro packages; the build uses the system
+        # python via `venv --system-site-packages`, so nothing to copy here.
+        print("Linux: gi provided by system packages (apt python3-gi); prepare is a no-op.")
+        return
     root = gst_root()
     site = venv / "Lib" / "site-packages"
     if not site.is_dir():
@@ -109,7 +122,28 @@ def prepare(venv: Path) -> None:
     print(f"  GStreamer root: {root}")
 
 
+def _bundle_linux(dist: Path) -> None:
+    """Copy the distro GStreamer plugins into the bundle (Linux).
+
+    Only the plugins are staged; the core gst/glib shared libs they need are
+    already bundled in the dist root by Nuitka (pulled in via gi + the typelibs),
+    and runtime_env.py puts the bundle root on LD_LIBRARY_PATH so the dlopen'd
+    plugins resolve against them.
+    """
+    plug_src = _linux_plugin_dir()
+    plug_dst = dist / "gstreamer" / "lib" / "gstreamer-1.0"
+    if plug_dst.exists():
+        shutil.rmtree(plug_dst)
+    plug_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(plug_src, plug_dst)
+    n = len(list(plug_dst.glob("*.so")))
+    print(f"Staged {n} GStreamer plugins from {plug_src} into {plug_dst}")
+
+
 def bundle(dist: Path) -> None:
+    if sys.platform.startswith("linux"):
+        _bundle_linux(dist)
+        return
     root = gst_root()
     dest = dist / "gstreamer"
     (dest / "lib").mkdir(parents=True, exist_ok=True)

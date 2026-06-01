@@ -77,8 +77,14 @@ def setup() -> None:
             # are loaded by GModule, which does use PATH.)
             if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
                 os.add_dll_directory(str(gst_bin))
-        # Shared libraries the plugins link against.
-        if sys.platform == "darwin" and gst_lib.is_dir():
-            _prepend_path("DYLD_LIBRARY_PATH", gst_lib)
-        elif sys.platform.startswith("linux") and gst_lib.is_dir():
-            _prepend_path("LD_LIBRARY_PATH", gst_lib)
+        # Shared libraries the plugins link against. On Linux the gst/glib core
+        # libs live in the bundle root (Nuitka pulled them in via gi), and the
+        # dlopen'd plugins must resolve against them, so put the root on the path.
+        if sys.platform == "darwin":
+            _prepend_path("DYLD_LIBRARY_PATH", root)
+            if gst_lib.is_dir():
+                _prepend_path("DYLD_LIBRARY_PATH", gst_lib)
+        elif sys.platform.startswith("linux"):
+            _prepend_path("LD_LIBRARY_PATH", root)
+            if gst_lib.is_dir():
+                _prepend_path("LD_LIBRARY_PATH", gst_lib)
