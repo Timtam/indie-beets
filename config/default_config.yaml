@@ -1,0 +1,26 @@
+# indie-beets default configuration
+#
+# Shipped inside the bundle as a sensible starting point. beets still reads the
+# user's own config (in their OS config dir) and overrides anything here, so
+# this only sets defaults that make the bundled batteries work out of the box.
+
+# Plugins that ship with the bundle. The user can trim or extend this list.
+plugins:
+  - chroma        # acoustic fingerprinting (uses bundled fpcalc)
+  - convert       # transcoding (uses bundled ffmpeg)
+  - replaygain    # loudness normalization
+  - fetchart
+  - lyrics
+  - lastgenre
+  - duplicates
+  - info
+  - missing
+  - scrub
+
+# ReplayGain: the ffmpeg backend is the most portable since we bundle ffmpeg.
+replaygain:
+  backend: ffmpeg
+
+# convert: rely on the bundled ffmpeg on PATH (runtime_env wires this up).
+convert:
+  ffmpeg: ffmpeg

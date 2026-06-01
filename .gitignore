@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Build output
+/build/
+/dist/
+*.log
+nuitka-crash-report.xml
+
+# Staged batteries (downloaded by scripts/stage_binaries.py)
+/bin/
+/gstreamer/

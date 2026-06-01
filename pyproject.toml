@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "indie-beets"
+version = "0.0.1"
+description = "Standalone, batteries-included executable builds of the beets music manager"
+requires-python = ">=3.10"
+readme = "README.md"
+
+# Pinned so CI and local builds are reproducible. beets is the app we freeze;
+# the rest are the optional runtime deps of the plugins we want to ship.
+dependencies = [
+    "beets==2.11.0",
+    # chroma plugin: acoustic fingerprinting via Chromaprint/AcoustID
+    "pyacoustid",
+    # common metadata/network deps pulled in by core + popular plugins
+    "requests",
+    "mutagen",
+    "pyyaml",
+    # lyrics plugin: HTML scraping of lyrics pages
+    "beautifulsoup4",
+    "langdetect",
+]
+
+[project.optional-dependencies]
+# The build toolchain. Kept separate so the frozen app doesn't carry it.
+build = [
+    "nuitka==2.8",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.indie-beets]
+# Single source of truth for which beets plugins are "batteries included".
+# Consumed by scripts/build.py to force-include the right modules for Nuitka.
+bundled-plugins = [
+    "chroma",
+    "convert",
+    "replaygain",
+    "fetchart",
+    "lyrics",
+    "lastgenre",
+    "duplicates",
+    "info",
+    "missing",
+    "scrub",
+]
