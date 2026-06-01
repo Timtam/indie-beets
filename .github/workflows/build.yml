@@ -78,9 +78,12 @@ jobs:
           python-version: "3.12"
       - name: Build arm64 bundle
         run: |
+          # Install from the pinned closure (no numba/scipy/llvmlite) so both
+          # macOS arches get an identical module set for a clean lipo merge.
           python -m venv .venv-arm64
           .venv-arm64/bin/python -m pip install --upgrade pip
-          .venv-arm64/bin/pip install -e ".[build]"
+          .venv-arm64/bin/pip install --no-deps -r requirements-build.txt
+          .venv-arm64/bin/pip install --no-deps -e .
           .venv-arm64/bin/python scripts/build.py --output-dir build/arm64
 
       # --- x86_64 (entirely under Rosetta) ---
@@ -92,9 +95,12 @@ jobs:
           curl -LsSf https://github.com/astral-sh/uv/releases/download/0.11.17/uv-x86_64-apple-darwin.tar.gz -o uv-x64.tar.gz
           tar xzf uv-x64.tar.gz
           UV="$PWD/uv-x86_64-apple-darwin/uv"
+          # numba/llvmlite have no x86_64 macOS wheels, so install from the
+          # pinned closure with --no-deps (they're never resolved/built).
           arch -x86_64 "$UV" python install 3.12
           arch -x86_64 "$UV" venv --python 3.12 .venv-x64
-          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python -e ".[build]"
+          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -r requirements-build.txt
+          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -e .
           arch -x86_64 .venv-x64/bin/python scripts/build.py --output-dir build/x86_64
 
       # --- fuse + batteries + package ---

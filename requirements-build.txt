@@ -1,0 +1,52 @@
+# Pinned build/runtime closure for the macOS universal2 builds.
+#
+# Why this file exists: beets hard-declares numba + scipy (which pull llvmlite),
+# but its code never imports them and we exclude them from the Nuitka freeze.
+# On x86_64 macOS there are NO numba/llvmlite wheels, so a normal install tries
+# to build llvmlite from source (needs LLVM) and fails. Installing this list
+# with `--no-deps` sidesteps that: numba/scipy/llvmlite are simply never
+# resolved, and both macOS arches get an identical module set (clean lipo merge).
+#
+# Maintenance: this is the full transitive closure MINUS {numba, scipy, llvmlite},
+# resolved for Python 3.12 (the CI build version). Regenerate when bumping beets
+# or the Python build version. The Python 3.13-only stdlib backports
+# (audioop-lts, standard-aifc/chunk/sunau) are intentionally absent — on 3.12
+# those modules are still in the standard library.
+anyio==4.13.0
+audioread==3.1.0
+beautifulsoup4==4.14.3
+beetcamp==0.24.3
+beets-filetote==1.3.4
+beets==2.10.0
+certifi==2026.5.20
+charset-normalizer==3.4.7
+colorama==0.4.6
+confuse==2.2.0
+filetype==1.2.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.17
+jellyfish==1.2.1
+langdetect==1.0.9
+lap==0.5.13
+mediafile==0.17.0
+mutagen==1.47.0
+Nuitka==2.8
+numpy==2.4.6
+ordered-set==4.1.0
+packaging==26.2
+pillow==12.2.0
+platformdirs==4.10.0
+pyacoustid==1.3.1
+pycountry==26.2.16
+pyrate-limiter==4.2.0
+PyYAML==6.0.3
+requests-ratelimiter==0.10.0
+requests==2.34.2
+six==1.17.0
+soupsieve==2.8.4
+typing_extensions==4.15.0
+Unidecode==1.4.0
+urllib3==2.7.0
+zstandard==0.25.0
