@@ -137,7 +137,9 @@ jobs:
           uv pip install --python .venv-arm64/bin/python --no-deps -e .
           # Build PyGObject (gi) + pycairo from source against the framework.
           export PKG_CONFIG_PATH="$FW/lib/pkgconfig" PATH="$FW/bin:$PATH"
-          uv pip install --python .venv-arm64/bin/python pycairo PyGObject
+          # Pin PyGObject 3.50.x: it targets girepository-1.0, which the GStreamer
+          # framework ships. 3.52+ requires girepository-2.0 (glib>=2.80), absent here.
+          uv pip install --python .venv-arm64/bin/python pycairo "PyGObject==3.50.2"
           # gi must be importable for Nuitka's gi plugin at build time.
           export DYLD_FALLBACK_LIBRARY_PATH="$FW/lib" GI_TYPELIB_PATH="$FW/lib/girepository-1.0"
           .venv-arm64/bin/python scripts/build.py --with-gstreamer --output-dir build/arm64
@@ -160,7 +162,7 @@ jobs:
           arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -r requirements-build.txt
           arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -e .
           export PKG_CONFIG_PATH="$FW/lib/pkgconfig" PATH="$FW/bin:$PATH"
-          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python pycairo PyGObject
+          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python pycairo "PyGObject==3.50.2"
           export DYLD_FALLBACK_LIBRARY_PATH="$FW/lib" GI_TYPELIB_PATH="$FW/lib/girepository-1.0"
           arch -x86_64 .venv-x64/bin/python scripts/build.py --with-gstreamer --output-dir build/x86_64
 
