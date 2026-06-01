@@ -122,22 +122,75 @@ def prepare(venv: Path) -> None:
     print(f"  GStreamer root: {root}")
 
 
-def _bundle_linux(dist: Path) -> None:
-    """Copy the distro GStreamer plugins into the bundle (Linux).
+# glibc / loader libs every Linux already provides — bundling these can break
+# things, so we never copy them. Everything else (glib, gst, codecs) we DO bundle.
+_LINUX_SYSTEM_LIBS = (
+    "linux-vdso", "ld-linux", "libc.so", "libm.so", "libdl.so", "libpthread",
+    "librt.so", "libresolv", "libutil", "libcrypt", "libnsl", "libgcc_s",
+    "libstdc++",
+)
 
-    Only the plugins are staged; the core gst/glib shared libs they need are
-    already bundled in the dist root by Nuitka (pulled in via gi + the typelibs),
-    and runtime_env.py puts the bundle root on LD_LIBRARY_PATH so the dlopen'd
-    plugins resolve against them.
+
+def _ldd_deps(path: Path) -> set[str]:
+    """Absolute paths of the shared libs `path` links against (via ldd)."""
+    try:
+        out = subprocess.run(["ldd", str(path)], capture_output=True, text=True).stdout
+    except FileNotFoundError:
+        raise RuntimeError("ldd not found — Linux staging needs binutils/libc-bin")
+    deps: set[str] = set()
+    for line in out.splitlines():
+        # lines look like:  libfoo.so.1 => /usr/lib/.../libfoo.so.1 (0x...)
+        if "=>" in line:
+            rhs = line.split("=>", 1)[1].strip()
+            p = rhs.split(" (")[0].strip()
+            if p.startswith("/"):
+                deps.add(p)
+    return deps
+
+
+def _bundle_linux(dist: Path) -> None:
+    """Stage the distro GStreamer plugins AND their shared-library closure.
+
+    Nuitka does NOT bundle glib/gst core libs (it treats them as system libs), so
+    a build host's system GStreamer would silently satisfy them — but an end user
+    without GStreamer installed would have a broken bundle. So we walk the ldd
+    closure of the plugins (+ the gi extension) and copy every non-glibc .so into
+    the bundle. runtime_env.py puts that dir on LD_LIBRARY_PATH at startup.
     """
     plug_src = _linux_plugin_dir()
-    plug_dst = dist / "gstreamer" / "lib" / "gstreamer-1.0"
+    libdir = dist / "gstreamer" / "lib"
+    plug_dst = libdir / "gstreamer-1.0"
     if plug_dst.exists():
         shutil.rmtree(plug_dst)
     plug_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(plug_src, plug_dst)
-    n = len(list(plug_dst.glob("*.so")))
-    print(f"Staged {n} GStreamer plugins from {plug_src} into {plug_dst}")
+    n_plug = len(list(plug_dst.glob("*.so")))
+
+    # Seed the closure with the plugins and the bundled gi extension(s).
+    seeds = list(plug_dst.glob("*.so")) + list(dist.rglob("_gi*.so"))
+    seen: set[str] = set()
+    worklist = [Path(s) for s in seeds]
+    to_copy: set[str] = set()
+    while worklist:
+        item = worklist.pop()
+        for dep in _ldd_deps(item):
+            if dep in seen:
+                continue
+            seen.add(dep)
+            base = Path(dep).name
+            if any(base.startswith(p) for p in _LINUX_SYSTEM_LIBS):
+                continue
+            # Skip libs Nuitka already placed in the bundle root (avoid dupes).
+            if (dist / base).exists():
+                continue
+            to_copy.add(dep)
+            worklist.append(Path(dep))  # recurse into this lib's own deps
+
+    for dep in sorted(to_copy):
+        # copy2 follows the symlink, writing the real content under the soname.
+        shutil.copy2(dep, libdir / Path(dep).name)
+
+    print(f"Staged {n_plug} plugins + {len(to_copy)} shared libs into {libdir}")
 
 
 def bundle(dist: Path) -> None:

@@ -39,10 +39,14 @@ jobs:
         run: .venv/bin/python scripts/build.py --with-gstreamer
       - name: Stage bundled binaries (ffmpeg, fpcalc)
         run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
-      - name: Stage GStreamer plugins into bundle
+      - name: Stage GStreamer plugins + lib closure into bundle
         run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
-      - name: Smoke test (GStreamer ReplayGain)
-        run: .venv/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
+      - name: Clean-room smoke (bare ubuntu, no system GStreamer)
+        run: |
+          docker run --rm \
+            -v "$PWD/build/indie_beets.dist:/bundle:ro" \
+            -v "$PWD/scripts/smoke_clean.sh:/smoke.sh:ro" \
+            ubuntu:24.04 bash /smoke.sh /bundle gstreamer
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
