@@ -16,7 +16,6 @@ import argparse
 import shutil
 import sys
 import tarfile
-import tomllib
 import zipfile
 from pathlib import Path
 
@@ -24,9 +23,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DIST = REPO_ROOT / "build" / "indie_beets.dist"
 
 
-def project_version() -> str:
-    with (REPO_ROOT / "pyproject.toml").open("rb") as fh:
-        return tomllib.load(fh)["project"]["version"]
+def release_version() -> str:
+    """The release number IS the bundled beets version.
+
+    indie-beets is just a standalone build of beets, so we take the version
+    straight from the beets we froze — guaranteeing the archive name always
+    matches the actual beets inside it.
+    """
+    import beets
+
+    return beets.__version__
 
 
 def platform_tag() -> str:
@@ -79,7 +85,7 @@ def main() -> int:
         return 1
 
     add_extras(dist)
-    base_name = f"indie-beets-{project_version()}-{platform_tag()}"
+    base_name = f"indie-beets-{release_version()}-{platform_tag()}"
     archive = make_archive(dist, Path(args.out_dir), base_name)
     size_mb = archive.stat().st_size / (1024 * 1024)
     print(f"Packaged: {archive} ({size_mb:.1f} MB)")

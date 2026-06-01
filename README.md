@@ -9,12 +9,21 @@ the popular plugins need is bundled.
 
 > Status: early development. See the build plan for the phased roadmap.
 
+## Versioning
+
+indie-beets is nothing more than a standalone build of beets, so **its release
+number is exactly the bundled beets version** (e.g. `indie-beets-2.10.0`). The
+version is taken straight from the frozen beets at package time, so the number
+on the archive always matches the beets inside it.
+
 ## What's inside
 
 - **beets** (pinned) compiled to a standalone executable with [Nuitka](https://nuitka.net).
 - **ffmpeg** — transcoding (`convert`) and ReplayGain analysis.
 - **fpcalc / Chromaprint** — acoustic fingerprinting (`chroma`).
-- **GStreamer** — audio decoding and the `gstreamer` ReplayGain backend.
+- **GStreamer** — audio decoding and the `gstreamer` ReplayGain backend (planned).
+- Bundled third-party plugins: **beetcamp** (`bandcamp` metadata source) and
+  **beets-filetote** (`filetote`, carries non-music files along on import).
 
 ## Building locally
 
