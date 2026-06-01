@@ -41,15 +41,15 @@ jobs:
         run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
       - name: Stage GStreamer plugins into bundle
         run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
-      - name: Package archive
-        run: .venv/bin/python scripts/package.py
       - name: Smoke test (GStreamer ReplayGain)
         run: .venv/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
-      - name: Upload artifact
+      - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
+          # Upload the bundle folder (not a pre-made .zip) so the downloaded
+          # artifact is a single zip of the bundle, not a zip-inside-a-zip.
           name: indie-beets-linux-x86_64
-          path: dist/*
+          path: build/indie_beets.dist
 
   # Windows: standalone build WITH the full GStreamer battery. The official
   # GStreamer MSVC runtime ships prebuilt PyGObject for CPython 3.13, so we pin
@@ -80,15 +80,14 @@ jobs:
         run: .venv\Scripts\python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
       - name: Stage GStreamer runtime into bundle
         run: .venv\Scripts\python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
-      - name: Package archive
-        run: .venv\Scripts\python scripts/package.py
       - name: Smoke test (GStreamer ReplayGain)
         run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
-      - name: Upload artifact
+      - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
+          # Folder, not a pre-made .zip, to avoid a zip-inside-a-zip artifact.
           name: indie-beets-windows-x86_64
-          path: dist/*
+          path: build/indie_beets.dist
 
   # macOS: build arm64 natively + x86_64 under Rosetta, then lipo-merge into a
   # single universal2 bundle that runs on both Intel and Apple Silicon.
@@ -143,20 +142,18 @@ jobs:
       - name: Stage universal binaries (ffmpeg, fpcalc)
         run: .venv-arm64/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin --universal
 
-      - name: Package archive
-        run: .venv-arm64/bin/python scripts/package.py --platform-tag macos-universal
-
       - name: Smoke test + verify universal
         run: |
           .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend ffmpeg
           echo "Architectures in the executable:"
           lipo -archs build/indie_beets.dist/beet
 
-      - name: Upload artifact
+      - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
+          # Folder, not a pre-made archive, to avoid a zip-inside-a-zip artifact.
           name: indie-beets-macos-universal
-          path: dist/*
+          path: build/indie_beets.dist
 
   release:
     name: Publish release
@@ -169,7 +166,21 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Archive bundles (named after the tag version)
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          mkdir -p out
+          for d in artifacts/indie-beets-*; do
+            plat="${d##*/indie-beets-}"
+            name="indie-beets-$ver-$plat"
+            mv "$d" "$name"
+            case "$plat" in
+              windows-*) zip -rq "out/$name.zip" "$name" ;;
+              *)         tar -czf "out/$name.tar.gz" "$name" ;;
+            esac
+          done
+          ls -la out
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/**/*
+          files: out/*
