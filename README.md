@@ -165,6 +165,20 @@ python scripts/package.py                                 # 3. make the archive
 The standalone folder lands in `build/indie_beets.dist/`, and the distributable
 archive in `dist/`.
 
+### Selective CI builds
+
+By default a push builds every platform. To iterate on one platform without
+rebuilding the others, put **`ci-only`** in the commit message plus a token for
+each platform you want: **`+windows`**, **`+linux`**, **`+macos`** (and
+**`+winarm64`** once that job exists). For example:
+
+```
+fix arm64 toolchain [ci-only +windows]
+```
+
+This only affects `push` runs — pull requests and the release (manual *Run
+workflow*) always build all platforms.
+
 ## Repository layout
 
 | Path | Purpose |

@@ -7,6 +7,11 @@ on:
   # Manual "Run workflow" button: builds AND cuts a release (see the release job).
   workflow_dispatch:
 
+# Selective builds: by default every platform builds. To iterate on one platform
+# without rebuilding the others, put `ci-only` in the commit message plus a token
+# for each platform you DO want: `+windows`, `+linux`, `+macos` (future `+winarm64`).
+# Example commit subject:  wip arm64 stuff [ci-only +windows]
+# Only applies to push events; pull_request and the release dispatch build all.
 jobs:
   # Linux: standalone build WITH GStreamer from distro packages. gi comes from
   # apt's python3-gi, so we build with the SYSTEM python3 (matching gi's ABI) in
@@ -14,6 +19,10 @@ jobs:
   build-linux:
     name: linux-x86_64
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name != 'push'
+      || !contains(github.event.head_commit.message, 'ci-only')
+      || contains(github.event.head_commit.message, '+linux')
     steps:
       - uses: actions/checkout@v4
       - name: Install build + GStreamer deps
@@ -66,6 +75,10 @@ jobs:
   build-windows:
     name: windows-x86_64
     runs-on: windows-latest
+    if: >-
+      github.event_name != 'push'
+      || !contains(github.event.head_commit.message, 'ci-only')
+      || contains(github.event.head_commit.message, '+windows')
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -103,6 +116,10 @@ jobs:
   build-macos:
     name: macos-universal
     runs-on: macos-14   # Apple Silicon; has Rosetta 2 for the x86_64 build
+    if: >-
+      github.event_name != 'push'
+      || !contains(github.event.head_commit.message, 'ci-only')
+      || contains(github.event.head_commit.message, '+macos')
     steps:
       - uses: actions/checkout@v4
 
