@@ -15,10 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 # Selective builds: by default every platform builds. To iterate on one platform
-# without rebuilding the others, put `ci-only` in the commit message plus a token
-# for each platform you DO want: `+linux`, `+linuxarm64`, `+windows`, `+macos`.
-# Example commit subject:  wip arm64 stuff [ci-only +linuxarm64]
-# Only applies to push events; pull_request and the release dispatch build all.
+# without rebuilding the others, put the marker `[ci-only` in the commit message
+# plus a token for each platform you DO want: `+linux-x64`, `+linux-arm64`,
+# `+windows`, `+macos`. Example commit subject:  wip arm64 [ci-only +linux-arm64]
+# The `[ci-only` bracket avoids matching the words in normal commit prose; tokens
+# are chosen to not be substrings of one another. Only applies to push events;
+# pull_request and the release dispatch always build everything.
 jobs:
   # Linux x86_64: standalone build WITH GStreamer from distro packages. gi comes
   # from apt's python3-gi, so we build with the SYSTEM python3 (matching gi's ABI)
@@ -31,8 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name != 'push'
-      || !contains(github.event.head_commit.message, 'ci-only')
-      || contains(github.event.head_commit.message, '+linux')
+      || !contains(github.event.head_commit.message, '[ci-only')
+      || contains(github.event.head_commit.message, '+linux-x64')
     steps:
       - uses: actions/checkout@v4
       - name: Install build + GStreamer deps
@@ -85,8 +87,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     if: >-
       github.event_name != 'push'
-      || !contains(github.event.head_commit.message, 'ci-only')
-      || contains(github.event.head_commit.message, '+linuxarm64')
+      || !contains(github.event.head_commit.message, '[ci-only')
+      || contains(github.event.head_commit.message, '+linux-arm64')
     steps:
       - uses: actions/checkout@v4
       - name: Install build + GStreamer deps
@@ -139,7 +141,7 @@ jobs:
     runs-on: windows-latest
     if: >-
       github.event_name != 'push'
-      || !contains(github.event.head_commit.message, 'ci-only')
+      || !contains(github.event.head_commit.message, '[ci-only')
       || contains(github.event.head_commit.message, '+windows')
     steps:
       - uses: actions/checkout@v4
@@ -180,7 +182,7 @@ jobs:
     runs-on: macos-14   # Apple Silicon; has Rosetta 2 for the x86_64 build
     if: >-
       github.event_name != 'push'
-      || !contains(github.event.head_commit.message, 'ci-only')
+      || !contains(github.event.head_commit.message, '[ci-only')
       || contains(github.event.head_commit.message, '+macos')
     steps:
       - uses: actions/checkout@v4

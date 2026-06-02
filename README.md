@@ -173,13 +173,16 @@ archive in `dist/`.
 ### Selective CI builds
 
 By default a push builds every platform. To iterate on one platform without
-rebuilding the others, put **`ci-only`** in the commit message plus a token for
-each platform you want: **`+linux`**, **`+linuxarm64`**, **`+windows`**,
-**`+macos`**. For example:
+rebuilding the others, put the marker **`[ci-only`** in the commit message plus a
+token for each platform you want: **`+linux-x64`**, **`+linux-arm64`**,
+**`+windows`**, **`+macos`**. For example:
 
 ```
-fix gstreamer staging [ci-only +linuxarm64]
+fix gstreamer staging [ci-only +linux-arm64]
 ```
+
+(The `[ci-only` bracket keeps normal commit prose from triggering it, and the
+tokens don't overlap as substrings.)
 
 This only affects `push` runs — pull requests and the release (manual *Run
 workflow*) always build all platforms.
