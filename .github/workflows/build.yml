@@ -7,22 +7,35 @@ on:
   # Manual "Run workflow" button: builds AND cuts a release (see the release job).
   workflow_dispatch:
 
+# Cancel an in-progress run when a newer one starts on the same ref + event, so
+# rapid pushes don't pile up runs. Keyed by event too, so a manual release
+# dispatch is never cancelled by (and never cancels) a push build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 # Selective builds: by default every platform builds. To iterate on one platform
 # without rebuilding the others, put `ci-only` in the commit message plus a token
-# for each platform you DO want: `+windows`, `+linux`, `+macos` (future `+winarm64`).
-# Example commit subject:  wip arm64 stuff [ci-only +windows]
+# for each platform you DO want: `+linux`, `+linuxarm64`, `+windows`, `+macos`.
+# Example commit subject:  wip arm64 stuff [ci-only +linuxarm64]
 # Only applies to push events; pull_request and the release dispatch build all.
 jobs:
-  # Linux: standalone build WITH GStreamer from distro packages. gi comes from
-  # apt's python3-gi, so we build with the SYSTEM python3 (matching gi's ABI) in
-  # a venv created with --system-site-packages so gi is importable.
+  # Linux (x86_64 + arm64): standalone build WITH GStreamer from distro packages.
+  # gi comes from apt's python3-gi, so we build with the SYSTEM python3 (matching
+  # gi's ABI) in a venv created with --system-site-packages so gi is importable.
   build-linux:
-    name: linux-x86_64
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
     if: >-
       github.event_name != 'push'
       || !contains(github.event.head_commit.message, 'ci-only')
-      || contains(github.event.head_commit.message, '+linux')
+      || contains(github.event.head_commit.message, matrix.token)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-latest,    name: linux-x86_64, token: "+linux" }
+          - { runner: ubuntu-24.04-arm, name: linux-arm64,  token: "+linuxarm64" }
     steps:
       - uses: actions/checkout@v4
       - name: Install build + GStreamer deps
@@ -38,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/Nuitka
-          key: nuitka-linux-${{ hashFiles('pyproject.toml') }}
+          key: nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml') }}
       - name: Install project + build toolchain
         run: |
           python3 -m venv --system-site-packages .venv
@@ -66,7 +79,7 @@ jobs:
         with:
           # Upload the bundle folder (not a pre-made .zip) so the downloaded
           # artifact is a single zip of the bundle, not a zip-inside-a-zip.
-          name: indie-beets-linux-x86_64
+          name: indie-beets-${{ matrix.name }}
           path: build/indie_beets.dist
 
   # Windows: standalone build WITH the full GStreamer battery. The official

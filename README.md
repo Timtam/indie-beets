@@ -71,8 +71,8 @@ from the usual location, so your settings survive upgrades.
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux) · **not on macOS** (see below) |
-| Platforms        | Windows x86_64 · Linux x86_64 · macOS universal2 (Intel + Apple Silicon) |
+| GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux x86_64 + arm64) · **not on macOS** (see below) |
+| Platforms        | Windows x86_64 · Linux x86_64 · Linux arm64 · macOS universal2 (Intel + Apple Silicon) |
 
 ### Version numbers & releases
 
@@ -174,11 +174,11 @@ archive in `dist/`.
 
 By default a push builds every platform. To iterate on one platform without
 rebuilding the others, put **`ci-only`** in the commit message plus a token for
-each platform you want: **`+windows`**, **`+linux`**, **`+macos`** (and
-**`+winarm64`** once that job exists). For example:
+each platform you want: **`+linux`**, **`+linuxarm64`**, **`+windows`**,
+**`+macos`**. For example:
 
 ```
-fix arm64 toolchain [ci-only +windows]
+fix gstreamer staging [ci-only +linuxarm64]
 ```
 
 This only affects `push` runs — pull requests and the release (manual *Run
