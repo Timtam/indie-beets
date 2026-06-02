@@ -66,12 +66,18 @@ from the usual location, so your settings survive upgrades.
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux) — macOS pending |
+| GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux) · **not on macOS** (see below) |
 | Platforms        | Windows x86_64 · Linux x86_64 · macOS universal2 (Intel + Apple Silicon) |
 
-The indie-beets **release number is exactly the bundled beets version** (e.g.
-`indie-beets-2.10.0`). It is taken straight from the frozen beets at packaging
-time, so the number on the archive always matches the beets inside it.
+### Version numbers
+
+An indie-beets release is versioned as **`<beets version>-<build>`**, e.g.
+`indie-beets-2.10.0-1`. The first part is taken straight from the frozen beets
+(so it always matches the beets inside the bundle); the `-<build>` suffix is an
+indie-beets revision that **starts at 1 and increments** each time we re-release
+the *same* beets version (e.g. to ship a packaging fix), and **resets to 1**
+whenever the beets version is bumped. The build number lives in
+`pyproject.toml` under `[tool.indie-beets].build`.
 
 ### Why not beets 2.11.0 yet?
 
@@ -117,10 +123,19 @@ may require additional bundling work; open an issue if one you need is missing.)
 | `fpcalc` (Chromaprint) | `chroma` | Acoustic fingerprinting for tag lookup. |
 | **GStreamer** (Windows, Linux) | `gstreamer` ReplayGain backend, `bpd` | Full GStreamer runtime + plugins + PyGObject. |
 
-> **GStreamer is bundled on Windows and Linux** (macOS pending). The everyday
-> workflow doesn't need it — ffmpeg covers transcoding and ReplayGain, and
-> `fpcalc` decodes audio for fingerprinting on its own — so it stays opt-in via
-> your config (`replaygain.backend: gstreamer` or the `bpd` plugin).
+> **GStreamer is bundled on Windows and Linux only.** The everyday workflow
+> doesn't need it — ffmpeg covers transcoding and ReplayGain, and `fpcalc`
+> decodes audio for fingerprinting on its own — so it stays opt-in via your
+> config (`replaygain.backend: gstreamer` or the `bpd` plugin).
+>
+> **Why not on macOS?** Nuitka's macOS dependency scanner aborts when it walks
+> the GStreamer Python bindings' link to `libglib`
+> ([Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628), unresolved) —
+> and it fails whether that dependency is referenced via `@rpath` or rewritten
+> to an absolute path, so no packaging workaround gets past it (the upstream
+> `--noinclude-dlls` / `--nofollow-import-to` flags don't help either). macOS
+> therefore ships ffmpeg-only (which still covers transcoding + ReplayGain); the
+> only feature lost is the `bpd` server. We'll revisit once the Nuitka bug is fixed.
 
 ---
 
@@ -163,7 +178,7 @@ archive in `dist/`.
 - [x] Multi-OS CI matrix and release archives
 - [x] External plugins: beetcamp + beets-filetote
 - [x] GStreamer bundling on Windows + Linux (`gstreamer` ReplayGain backend, `bpd`)
-- [ ] GStreamer bundling on macOS
+- [ ] GStreamer bundling on macOS — blocked by [Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628)
 - [ ] Code signing / notarization (macOS, Windows)
 - [ ] Track beets 2.11.x once beets-filetote is compatible
 
