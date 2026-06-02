@@ -20,22 +20,19 @@ concurrency:
 # Example commit subject:  wip arm64 stuff [ci-only +linuxarm64]
 # Only applies to push events; pull_request and the release dispatch build all.
 jobs:
-  # Linux (x86_64 + arm64): standalone build WITH GStreamer from distro packages.
-  # gi comes from apt's python3-gi, so we build with the SYSTEM python3 (matching
-  # gi's ABI) in a venv created with --system-site-packages so gi is importable.
+  # Linux x86_64: standalone build WITH GStreamer from distro packages. gi comes
+  # from apt's python3-gi, so we build with the SYSTEM python3 (matching gi's ABI)
+  # in a venv created with --system-site-packages so gi is importable.
+  # (build-linux-arm64 below is identical except for the runner/labels — kept as a
+  # separate job because the per-platform `ci-only` token can't use a matrix
+  # value in a job-level `if`.)
   build-linux:
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.runner }}
+    name: linux-x86_64
+    runs-on: ubuntu-latest
     if: >-
       github.event_name != 'push'
       || !contains(github.event.head_commit.message, 'ci-only')
-      || contains(github.event.head_commit.message, matrix.token)
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { runner: ubuntu-latest,    name: linux-x86_64, token: "+linux" }
-          - { runner: ubuntu-24.04-arm, name: linux-arm64,  token: "+linuxarm64" }
+      || contains(github.event.head_commit.message, '+linux')
     steps:
       - uses: actions/checkout@v4
       - name: Install build + GStreamer deps
@@ -51,7 +48,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/Nuitka
-          key: nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml') }}
+          key: nuitka-linux-x86_64-${{ hashFiles('pyproject.toml') }}
       - name: Install project + build toolchain
         run: |
           python3 -m venv --system-site-packages .venv
@@ -79,7 +76,59 @@ jobs:
         with:
           # Upload the bundle folder (not a pre-made .zip) so the downloaded
           # artifact is a single zip of the bundle, not a zip-inside-a-zip.
-          name: indie-beets-${{ matrix.name }}
+          name: indie-beets-linux-x86_64
+          path: build/indie_beets.dist
+
+  # Linux arm64: same as build-linux but on the ARM64 runner. Token: +linuxarm64.
+  build-linux-arm64:
+    name: linux-arm64
+    runs-on: ubuntu-24.04-arm
+    if: >-
+      github.event_name != 'push'
+      || !contains(github.event.head_commit.message, 'ci-only')
+      || contains(github.event.head_commit.message, '+linuxarm64')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build + GStreamer deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            patchelf ccache python3-venv \
+            python3-gi python3-gi-cairo \
+            gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav
+      - name: Cache Nuitka
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Nuitka
+          key: nuitka-linux-arm64-${{ hashFiles('pyproject.toml') }}
+      - name: Install project + build toolchain
+        run: |
+          python3 -m venv --system-site-packages .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -e ".[build]"
+      - name: Build standalone bundle (Nuitka + gi)
+        run: .venv/bin/python scripts/build.py --with-gstreamer
+      - name: Stage bundled binaries (ffmpeg, fpcalc)
+        run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
+      - name: Stage GStreamer plugins + lib closure into bundle
+        run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
+      - name: Clean-room smoke (bare ubuntu, no system GStreamer)
+        run: |
+          docker run --rm \
+            -v "$PWD/build/indie_beets.dist:/bundle:ro" \
+            -v "$PWD/scripts/smoke_clean.sh:/smoke.sh:ro" \
+            ubuntu:24.04 bash -c '
+              echo "--- ldd of bundled _gi (rpath should resolve glib) ---"
+              ldd /bundle/gi/_gi*.so 2>&1 | grep -iE "glib|gobject|girepository|not found" || true
+              echo "--- smoke ---"
+              bash /smoke.sh /bundle gstreamer
+            '
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: indie-beets-linux-arm64
           path: build/indie_beets.dist
 
   # Windows: standalone build WITH the full GStreamer battery. The official
@@ -206,7 +255,7 @@ jobs:
   # and creates the tag + GitHub Release.
   release:
     name: Publish release
-    needs: [build-linux, build-windows, build-macos]
+    needs: [build-linux, build-linux-arm64, build-windows, build-macos]
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
