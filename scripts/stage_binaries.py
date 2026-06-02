@@ -39,9 +39,11 @@ CHROMAPRINT_BASE = (
 )
 # Windows/Linux: BtbN static ffmpeg (does NOT build macOS).
 FFMPEG_BTBN_BASE = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+FFMPEG_BTBN_VERSION = "n8.1"  # ffmpeg series used on Windows/Linux (for changelog)
 # macOS: eugeneware/ffmpeg-static ships static arm64 + x64 ffmpeg AND ffprobe.
 # (Lags upstream a little — currently ffmpeg 6.1.1 — which is fine for beets.)
 FFMPEG_STATIC_TAG = "b6.1.1"
+FFMPEG_MACOS_VERSION = "6.1.1"  # ffmpeg version on macOS (for changelog)
 FFMPEG_STATIC_BASE = (
     f"https://github.com/eugeneware/ffmpeg-static/releases/download/{FFMPEG_STATIC_TAG}"
 )

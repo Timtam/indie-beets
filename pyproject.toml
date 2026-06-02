@@ -48,10 +48,9 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.indie-beets]
-# indie-beets release revision. The release version is "<beets version>-<build>"
-# (e.g. 2.10.0-1). Increment on each re-release of the SAME beets version (e.g. a
-# packaging fix); reset to 1 when the pinned beets version is bumped.
-build = 1
+# Release version is "<beets version>-<build>" (e.g. 2.10.0-1). The build number
+# is computed automatically at release time from existing git tags
+# (scripts/next_version.py) — no static value to maintain here.
 
 # Single source of truth for which beets plugins are "batteries included".
 # Consumed by scripts/build.py to force-include the right modules for Nuitka.

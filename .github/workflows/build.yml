@@ -3,8 +3,8 @@ name: build
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
   pull_request:
+  # Manual "Run workflow" button: builds AND cuts a release (see the release job).
   workflow_dispatch:
 
 jobs:
@@ -170,20 +170,34 @@ jobs:
           name: indie-beets-macos-universal
           path: build/indie_beets.dist
 
+  # Cut a release. Runs only on the manual "Run workflow" button. Computes the
+  # version automatically (<beets>-<next build> from git tags), archives the
+  # freshly-built bundles, generates the component manifest + CHANGELOG notes,
+  # and creates the tag + GitHub Release.
   release:
     name: Publish release
     needs: [build-linux, build-windows, build-macos]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags + history are needed to compute the build number
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Archive bundles (named after the tag version)
+      - name: Compute version + release notes
+        id: meta
         run: |
-          ver="${GITHUB_REF_NAME#v}"
+          ver=$(python3 scripts/next_version.py)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          python3 scripts/changelog.py --version "$ver" > notes.md
+          echo "Release version: $ver"
+      - name: Archive bundles
+        run: |
+          ver="${{ steps.meta.outputs.version }}"
           mkdir -p out
           for d in artifacts/indie-beets-*; do
             plat="${d##*/indie-beets-}"
@@ -195,7 +209,10 @@ jobs:
             esac
           done
           ls -la out
-      - name: Publish
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: indie-beets ${{ steps.meta.outputs.version }}
+          body_path: notes.md
           files: out/*

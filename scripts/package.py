@@ -16,7 +16,6 @@ import argparse
 import shutil
 import sys
 import tarfile
-import tomllib
 import zipfile
 from pathlib import Path
 
@@ -25,17 +24,16 @@ DEFAULT_DIST = REPO_ROOT / "build" / "indie_beets.dist"
 
 
 def release_version() -> str:
-    """Release version: "<bundled beets version>-<indie-beets build>".
+    """Version for a LOCAL package: "<bundled beets version>-dev".
 
-    The beets part comes straight from the frozen beets (so it always matches the
-    beets inside the bundle); the build suffix is an indie-beets revision read
-    from pyproject.toml ([tool.indie-beets].build), e.g. "2.10.0-1".
+    Real releases are versioned "<beets>-<build>" with the build number computed
+    from git tags at release time (the CI release job names the archives). Local
+    `python scripts/package.py` builds aren't numbered releases, so they get a
+    "-dev" suffix to make that obvious.
     """
     import beets
 
-    with (REPO_ROOT / "pyproject.toml").open("rb") as fh:
-        build = tomllib.load(fh)["tool"]["indie-beets"]["build"]
-    return f"{beets.__version__}-{build}"
+    return f"{beets.__version__}-dev"
 
 
 def platform_tag() -> str:

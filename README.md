@@ -69,15 +69,23 @@ from the usual location, so your settings survive upgrades.
 | GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux) · **not on macOS** (see below) |
 | Platforms        | Windows x86_64 · Linux x86_64 · macOS universal2 (Intel + Apple Silicon) |
 
-### Version numbers
+### Version numbers & releases
 
 An indie-beets release is versioned as **`<beets version>-<build>`**, e.g.
-`indie-beets-2.10.0-1`. The first part is taken straight from the frozen beets
-(so it always matches the beets inside the bundle); the `-<build>` suffix is an
-indie-beets revision that **starts at 1 and increments** each time we re-release
-the *same* beets version (e.g. to ship a packaging fix), and **resets to 1**
-whenever the beets version is bumped. The build number lives in
-`pyproject.toml` under `[tool.indie-beets].build`.
+`indie-beets-2.10.0-1`. The first part is the frozen beets version (so it always
+matches the beets inside the bundle); the `-<build>` suffix is an indie-beets
+revision that **starts at 1 and increments** for each re-release of the *same*
+beets version, and **resets to 1** when the beets version is bumped
+(`2.10.0-3` → `2.11.0-1`).
+
+Releases are cut by manually running the **build** workflow (the *Run workflow*
+button — no inputs). It builds all platforms, then a release job computes the
+next version automatically from existing `v<beets>-*` git tags, attaches the
+per-platform archives, and publishes a GitHub Release whose notes include the
+`## Unreleased` entries from [`CHANGELOG.md`](CHANGELOG.md) plus an
+auto-generated table of every bundled component version (beets, ffmpeg,
+GStreamer, fpcalc, plugins, …). Local `python scripts/package.py` builds are
+suffixed `-dev` since they aren't numbered releases.
 
 ### Why not beets 2.11.0 yet?
 
@@ -167,7 +175,10 @@ archive in `dist/`.
 | `scripts/stage_binaries.py` | Downloads/stages ffmpeg, fpcalc (pinned versions) |
 | `scripts/stage_gstreamer.py` | Wires the GStreamer MSVC runtime into the build + bundle (Windows) |
 | `scripts/lipo_merge.py` | Fuses the arm64 + x86_64 builds into a macOS universal2 tree |
-| `scripts/package.py` | Builds the release archive (named after the beets version) |
+| `scripts/package.py` | Builds a local release archive (`-dev`) |
+| `scripts/next_version.py` | Computes the next `<beets>-<build>` release version from git tags |
+| `scripts/changelog.py` | Renders the bundled-component manifest for release notes |
+| `CHANGELOG.md` | Manually-maintained release notes (`## Unreleased`) |
 | `config/default_config.yaml` | Sensible bundled defaults |
 | `.github/workflows/build.yml` | Multi-OS CI matrix |
 
