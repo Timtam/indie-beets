@@ -45,6 +45,11 @@ The result behaves exactly like the `beet` command you'd get from PyPI.
 > Apple Silicon and Intel Macs. (It's produced by building each architecture
 > separately — arm64 natively, x86_64 under Rosetta — and fusing them with `lipo`,
 > since Nuitka itself builds one architecture at a time.)
+>
+> **Windows on ARM:** use the **`windows-x86_64`** build — Windows 11 on ARM runs
+> it transparently via x64 emulation. There is no native arm64 Windows build yet:
+> Nuitka can't produce a Windows-arm64 *standalone* bundle (it lacks the binary
+> dependency analysis for that target). We'll add one if that changes upstream.
 
 A `config.example.yaml` is included in the archive showing the bundled defaults;
 copy what you want into your own beets config. beets reads your personal config
@@ -204,6 +209,8 @@ workflow*) always build all platforms.
 - [x] External plugins: beetcamp + beets-filetote
 - [x] GStreamer bundling on Windows + Linux (`gstreamer` ReplayGain backend, `bpd`)
 - [ ] GStreamer bundling on macOS — blocked by [Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628)
+- [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
+      support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)
 - [ ] Track beets 2.11.x once beets-filetote is compatible
 
