@@ -13,5 +13,10 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
-- Initial release tooling: standalone beets bundles for Windows, Linux and
-  macOS (universal2) with ffmpeg + fpcalc; GStreamer on Windows + Linux.
+- Add the **vgmdb** metadata source plugin (`beets-vgmdb`, enabled as `VGMplug`)
+  — fetches album/track metadata from VGMdb.
+
+## 2.10.0-1
+
+- Initial release tooling: standalone beets bundles for Windows, Linux (x86_64 +
+  arm64) and macOS (universal2) with ffmpeg + fpcalc; GStreamer on Windows + Linux.

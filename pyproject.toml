@@ -33,7 +33,13 @@ dependencies = [
     # extra bundled plugins (native, batteries-included)
     "beetcamp",          # Bandcamp metadata source -> beetsplug.bandcamp
     "beets-filetote",    # copy/move non-music files on import -> beetsplug.filetote
+    "beets-vgmdb",       # VGMdb metadata source -> beetsplug.VGMplug (needs lxml)
+    "lxml",              # parser used by beets-vgmdb (BeautifulSoup "lxml")
 ]
+# NOTE: beets-vgmdb declares a dependency on `pathlib` — that's the obsolete PyPI
+# backport (pathlib is stdlib since 3.4) and it BREAKS on modern Python / Nuitka.
+# It must be uninstalled after `pip install` (CI does this) and is never listed in
+# requirements-build.txt.
 
 [project.optional-dependencies]
 # The build toolchain. Kept separate so the frozen app doesn't carry it.
@@ -67,4 +73,5 @@ bundled-plugins = [
     "scrub",
     "bandcamp",
     "filetote",
+    "VGMplug",
 ]

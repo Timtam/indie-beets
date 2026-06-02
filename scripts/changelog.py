@@ -73,7 +73,7 @@ def render(version: str, notes: str = "") -> str:
     data = _pyproject()
     beets = _beets_version(data)
     plugins = data["tool"]["indie-beets"]["bundled-plugins"]
-    ext = _req_versions("beetcamp", "beets-filetote")
+    ext = _req_versions("beetcamp", "beets-filetote", "beets-vgmdb")
 
     rows = [
         ("beets", beets, beets, beets),
@@ -88,6 +88,8 @@ def render(version: str, notes: str = "") -> str:
          ext.get("beetcamp", "?"), ext.get("beetcamp", "?")),
         ("beets-filetote (filetote)", ext.get("beets-filetote", "?"),
          ext.get("beets-filetote", "?"), ext.get("beets-filetote", "?")),
+        ("beets-vgmdb (VGMplug)", ext.get("beets-vgmdb", "?"),
+         ext.get("beets-vgmdb", "?"), ext.get("beets-vgmdb", "?")),
     ]
 
     lines: list[str] = []

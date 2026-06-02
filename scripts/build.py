@@ -33,6 +33,7 @@ ENTRY_POINT = REPO_ROOT / "src" / "indie_beets"
 PLUGIN_RUNTIME_DEPS: dict[str, list[str]] = {
     "chroma": ["acoustid"],
     "lyrics": ["bs4"],
+    "VGMplug": ["lxml", "bs4"],  # beets-vgmdb: BeautifulSoup(..., "lxml")
 }
 
 # Modules we deliberately keep Nuitka from following into:

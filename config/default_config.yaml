@@ -18,6 +18,7 @@ plugins:
   - scrub
   - bandcamp     # Bandcamp as an autotagger metadata source (beetcamp)
   - filetote     # carry along non-music files (artwork, logs, …) on import
+  - VGMplug      # VGMdb as an autotagger metadata source (beets-vgmdb)
 
 # ReplayGain: the ffmpeg backend is the most portable since we bundle ffmpeg.
 replaygain:

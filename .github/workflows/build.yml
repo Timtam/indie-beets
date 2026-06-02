@@ -56,6 +56,9 @@ jobs:
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/pip install -e ".[build]"
+          # beets-vgmdb drags in the obsolete `pathlib` PyPI backport; remove it
+          # (it breaks on modern Python / Nuitka; stdlib pathlib stays).
+          .venv/bin/pip uninstall -y pathlib
       - name: Build standalone bundle (Nuitka + gi)
         run: .venv/bin/python scripts/build.py --with-gstreamer
       - name: Stage bundled binaries (ffmpeg, fpcalc)
@@ -110,6 +113,9 @@ jobs:
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/pip install -e ".[build]"
+          # beets-vgmdb drags in the obsolete `pathlib` PyPI backport; remove it
+          # (it breaks on modern Python / Nuitka; stdlib pathlib stays).
+          .venv/bin/pip uninstall -y pathlib
       - name: Build standalone bundle (Nuitka + gi)
         run: .venv/bin/python scripts/build.py --with-gstreamer
       - name: Stage bundled binaries (ffmpeg, fpcalc)
@@ -158,6 +164,8 @@ jobs:
           python -m venv .venv
           .venv\Scripts\python -m pip install --upgrade pip
           .venv\Scripts\pip install -e ".[build]"
+          # beets-vgmdb drags in the obsolete `pathlib` PyPI backport; remove it.
+          .venv\Scripts\pip uninstall -y pathlib
       - name: Prepare GStreamer (gi bindings + DLL/typelib env)
         run: .venv\Scripts\python scripts/stage_gstreamer.py prepare --venv .venv
       - name: Build standalone bundle (Nuitka + gi)
