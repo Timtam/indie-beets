@@ -15,12 +15,10 @@ readme = "README.md"
 
 # Pinned so CI and local builds are reproducible. beets is the app we freeze;
 # the rest are the optional runtime deps of the plugins we want to ship.
-# NOTE: beets is held at 2.10.0 (not 2.11.0) because beets-filetote 1.3.4 imports
-# MULTIDISC_MARKERS / MULTIDISC_PAT_FMT from beets.importer.tasks, which beets
-# privatized/renamed in 2.11.0. 2.10.0 is the newest beets both bundled plugins
-# support. Revisit when filetote releases 2.11-compatible support.
+# (Stayed on 2.10.0 for a while because beets-filetote < 1.3.5 imported symbols
+# that beets 2.11.0 renamed; filetote 1.3.5 fixed that, so we're on 2.11.0.)
 dependencies = [
-    "beets==2.10.0",
+    "beets==2.11.0",
     # chroma plugin: acoustic fingerprinting via Chromaprint/AcoustID
     "pyacoustid",
     # common metadata/network deps pulled in by core + popular plugins
@@ -30,6 +28,8 @@ dependencies = [
     # lyrics plugin: HTML scraping of lyrics pages
     "beautifulsoup4",
     "langdetect",
+    # lastgenre plugin: Last.fm genre tagging
+    "pylast",
     # extra bundled plugins (native, batteries-included)
     "beetcamp",          # Bandcamp metadata source -> beetsplug.bandcamp
     "beets-filetote",    # copy/move non-music files on import -> beetsplug.filetote

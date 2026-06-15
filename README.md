@@ -67,7 +67,7 @@ from the usual location, so your settings survive upgrades.
 
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
-| **beets**        | **2.10.0** (the release number tracks this)   |
+| **beets**        | **2.11.0** (the release number tracks this)   |
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
@@ -91,16 +91,6 @@ per-platform archives, and publishes a GitHub Release whose notes include the
 auto-generated table of every bundled component version (beets, ffmpeg,
 GStreamer, fpcalc, plugins, …). Local `python scripts/package.py` builds are
 suffixed `-dev` since they aren't numbered releases.
-
-### Why not beets 2.11.0 yet?
-
-beets 2.11.0 is the latest upstream release, but it is **held back to 2.10.0 on
-purpose**. beets 2.11.0 renamed/privatized the internal symbols
-`MULTIDISC_MARKERS` and `MULTIDISC_PAT_FMT` in `beets.importer.tasks`, and the
-current **beets-filetote** release (1.3.4) still imports them, so it fails to
-load against 2.11.0. **2.10.0 is the newest beets version that all bundled
-plugins — including the external ones — work with.** We will move to 2.11.x (and
-beyond) as soon as beets-filetote ships a compatible release.
 
 ---
 
@@ -215,7 +205,7 @@ workflow*) always build all platforms.
 - [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
       support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)
-- [ ] Track beets 2.11.x once beets-filetote is compatible
+- [x] Track latest beets (now 2.11.0, with beets-filetote 1.3.5)
 
 ---
 

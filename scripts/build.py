@@ -105,6 +105,7 @@ def build_command(args: argparse.Namespace, plugins: list[str]) -> list[str]:
         "--include-package=mediafile",
         "--include-package=confuse",
         "--include-package-data=beets",
+        "--include-package-data=beetsplug",  # plugin data files, e.g. lastgenre/genres.txt
         "--include-package-data=confuse",
         # requests imports its charset detector lazily, so Nuitka's analysis
         # drops it and requests falls back to no encoding detection. Force it in
