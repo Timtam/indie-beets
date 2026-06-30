@@ -144,10 +144,7 @@ jobs:
   # Python 3.13 here (the bindings won't load on 3.12).
   build-windows:
     name: windows-x86_64
-    # Pinned to VS 2022: as of 2026-06-15 windows-latest ships Visual Studio 2026
-    # (v18), which Nuitka 2.8 can't locate ("MSVC version resolved to None").
-    # Revisit (unpin / Nuitka upgrade) once Nuitka detects VS 18.
-    runs-on: windows-2022
+    runs-on: windows-latest
     if: >-
       github.event_name != 'push'
       || !contains(github.event.head_commit.message, '[ci-only')

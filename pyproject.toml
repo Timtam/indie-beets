@@ -44,7 +44,7 @@ dependencies = [
 [project.optional-dependencies]
 # The build toolchain. Kept separate so the frozen app doesn't carry it.
 build = [
-    "nuitka==2.8",
+    "nuitka==4.1.3",
 ]
 
 [tool.setuptools]
