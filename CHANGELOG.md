@@ -13,6 +13,10 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- Update to **beets 2.12.0** and **beets-filetote 1.3.6** (all 13 bundled plugins
+  verified loading on 2.12). Also picks up **pylast 7.1.0** (the lastgenre
+  dependency), which moves to a new `httpx2`-based HTTP stack — pinned to the
+  evaluated version. beets-vgmdb (1.3.5) and beetcamp (0.24.3) unchanged.
 - **GStreamer is now bundled on macOS too** (universal2), so the `gstreamer`
   ReplayGain backend and the `bpd` server work on every platform. Unblocked by
   upgrading to Nuitka 4.1.3, which fixed the macOS dependency-scan bug

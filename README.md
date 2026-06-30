@@ -67,7 +67,7 @@ from the usual location, so your settings survive upgrades.
 
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
-| **beets**        | **2.11.0** (the release number tracks this)   |
+| **beets**        | **2.12.0** (the release number tracks this)   |
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
@@ -205,7 +205,7 @@ workflow*) always build all platforms.
 - [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
       support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)
-- [x] Track latest beets (now 2.11.0, with beets-filetote 1.3.5)
+- [x] Track latest beets (now 2.12.0, with beets-filetote 1.3.6)
 
 ---
 

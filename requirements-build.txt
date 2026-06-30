@@ -13,20 +13,28 @@
 # (audioop-lts, standard-aifc/chunk/sunau) are intentionally absent — on 3.12
 # those modules are still in the standard library. Also intentionally absent:
 # the `pathlib` PyPI backport (beets-vgmdb declares it; it breaks modern Python).
-anyio==4.13.0
+# NOTE: httpx2/httpcore2/truststore come from pylast 7.1.0's new HTTP stack.
+# Intentionally EXCLUDED: ordered-set (not a Nuitka 4.1.3 dependency at all) and
+# zstandard (only a Nuitka `onefile`/`app` extra — we build --standalone, so it's
+# unused; if present it gets dragged into the bundle via urllib3's optional zstd
+# support, wasting ~1.2 MB). The Windows/Linux builds (pip install -e .[build])
+# never pull them either, so leaving them out keeps all platforms identical.
+anyio==4.14.1
 audioread==3.1.0
 beautifulsoup4==4.15.0
 beetcamp==0.24.3
-beets-filetote==1.3.5
+beets-filetote==1.3.6
 beets-vgmdb==1.3.5
-beets==2.11.0
-certifi==2026.5.20
+beets==2.12.0
+certifi==2026.6.17
 charset-normalizer==3.4.7
 colorama==0.4.6
 confuse==2.2.0
 filetype==1.2.0
 h11==0.16.0
+httpcore2==2.5.0
 httpcore==1.0.9
+httpx2==2.5.0
 httpx==0.28.1
 idna==3.18
 jellyfish==1.2.1
@@ -34,23 +42,22 @@ langdetect==1.0.9
 lap==0.5.13
 lxml==6.1.1
 mediafile==0.17.0
-mutagen==1.47.0
+mutagen==1.48.1
 Nuitka==4.1.3
 numpy==2.4.6
-ordered-set==4.1.0
 packaging==26.2
 pillow==12.2.0
 platformdirs==4.10.0
 pyacoustid==1.3.1
 pycountry==26.2.16
-pylast==7.0.2
+pylast==7.1.0
 pyrate-limiter==4.4.0
 PyYAML==6.0.3
 requests-ratelimiter==0.10.0
 requests==2.34.2
 six==1.17.0
 soupsieve==2.8.4
+truststore==0.10.4
 typing_extensions==4.15.0
 Unidecode==1.4.0
 urllib3==2.7.0
-zstandard==0.25.0
