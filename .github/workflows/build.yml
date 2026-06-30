@@ -202,24 +202,39 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      # NOTE: GStreamer is intentionally NOT bundled on macOS. Nuitka's macOS
-      # dependency scanner FATALs on GStreamer's libglib (Nuitka#3628, unresolved;
-      # neither @rpath->absolute rewriting nor the upstream workarounds help), so
-      # macOS ships ffmpeg-only (which covers transcoding + ReplayGain). Revisit
-      # when Nuitka#3628 is fixed. Windows + Linux bundle GStreamer.
+      # GStreamer IS bundled on macOS (since Nuitka 4.1.3, which fixed the #3628
+      # dependency-scan FATAL on gi -> GStreamer dylibs). Each arch builds against
+      # the universal GStreamer framework; the framework's dylibs are already fat,
+      # so staging happens once after the lipo-merge (scripts/stage_gstreamer.py
+      # _bundle_macos copies the plugins + their otool closure and bakes
+      # @loader_path rpaths — the macOS analogue of the Linux $ORIGIN/patchelf path).
+      - name: Install GStreamer framework (universal)
+        run: |
+          base="https://gstreamer.freedesktop.org/data/pkg/osx/1.26.11"
+          for p in gstreamer-1.0-1.26.11-universal.pkg gstreamer-1.0-devel-1.26.11-universal.pkg; do
+            curl -LsSfo "$p" "$base/$p"; sudo installer -pkg "$p" -target /
+          done
 
       # --- arm64 (native) ---
       - name: Build arm64 bundle
+        env:
+          FW: /Library/Frameworks/GStreamer.framework/Versions/1.0
         run: |
-          # Pinned closure (no numba/scipy/llvmlite) via --no-deps.
+          # Pinned closure (no numba/scipy/llvmlite) via --no-deps; PyGObject is
+          # built from source against the framework (with deps).
           uv python install 3.12
           uv venv --python 3.12 .venv-arm64
           uv pip install --python .venv-arm64/bin/python --no-deps -r requirements-build.txt
           uv pip install --python .venv-arm64/bin/python --no-deps -e .
-          .venv-arm64/bin/python scripts/build.py --output-dir build/arm64
+          export PKG_CONFIG_PATH="$FW/lib/pkgconfig" PATH="$FW/bin:$PATH"
+          uv pip install --python .venv-arm64/bin/python pycairo "PyGObject==3.50.2"
+          export DYLD_FALLBACK_LIBRARY_PATH="$FW/lib" GI_TYPELIB_PATH="$FW/lib/girepository-1.0"
+          .venv-arm64/bin/python scripts/build.py --with-gstreamer --output-dir build/arm64
 
       # --- x86_64 (entirely under Rosetta) ---
       - name: Build x86_64 bundle (Rosetta)
+        env:
+          FW: /Library/Frameworks/GStreamer.framework/Versions/1.0
         run: |
           # An arm64 uv can't run under `arch -x86_64` ("Bad CPU type"), so fetch
           # an x86_64 uv and run the whole x86_64 toolchain (uv + Python + Nuitka
@@ -227,13 +242,14 @@ jobs:
           curl -LsSf https://github.com/astral-sh/uv/releases/download/0.11.17/uv-x86_64-apple-darwin.tar.gz -o uv-x64.tar.gz
           tar xzf uv-x64.tar.gz
           UV="$PWD/uv-x86_64-apple-darwin/uv"
-          # numba/llvmlite have no x86_64 macOS wheels, so install from the
-          # pinned closure with --no-deps (they're never resolved/built).
           arch -x86_64 "$UV" python install 3.12
           arch -x86_64 "$UV" venv --python 3.12 .venv-x64
           arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -r requirements-build.txt
           arch -x86_64 "$UV" pip install --python .venv-x64/bin/python --no-deps -e .
-          arch -x86_64 .venv-x64/bin/python scripts/build.py --output-dir build/x86_64
+          export PKG_CONFIG_PATH="$FW/lib/pkgconfig" PATH="$FW/bin:$PATH"
+          arch -x86_64 "$UV" pip install --python .venv-x64/bin/python pycairo "PyGObject==3.50.2"
+          export DYLD_FALLBACK_LIBRARY_PATH="$FW/lib" GI_TYPELIB_PATH="$FW/lib/girepository-1.0"
+          arch -x86_64 .venv-x64/bin/python scripts/build.py --with-gstreamer --output-dir build/x86_64
 
       # --- fuse + batteries + package ---
       - name: lipo-merge into universal2
@@ -246,11 +262,16 @@ jobs:
       - name: Stage universal binaries (ffmpeg, fpcalc)
         run: .venv-arm64/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin --universal
 
-      - name: Smoke test + verify universal
+      - name: Stage GStreamer plugins + dylib closure into bundle
+        run: .venv-arm64/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
+
+      - name: Clean-room smoke (framework hidden, gstreamer backend)
         run: |
-          .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend ffmpeg
-          echo "Architectures in the executable:"
-          lipo -archs build/indie_beets.dist/beet
+          # Prove self-containment: move the system framework out of the way so
+          # the bundle can only succeed via its own staged libs + baked rpaths.
+          sudo mv /Library/Frameworks/GStreamer.framework /tmp/GStreamer.framework.away
+          .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
+          echo "Architectures in the executable:"; lipo -archs build/indie_beets.dist/beet
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4

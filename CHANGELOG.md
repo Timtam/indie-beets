@@ -13,6 +13,13 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **GStreamer is now bundled on macOS too** (universal2), so the `gstreamer`
+  ReplayGain backend and the `bpd` server work on every platform. Unblocked by
+  upgrading to Nuitka 4.1.3, which fixed the macOS dependency-scan bug
+  ([#3628](https://github.com/Nuitka/Nuitka/issues/3628)). Self-containment is
+  verified in CI by running the gstreamer smoke with the system framework hidden.
+- Upgrade the build to **Nuitka 4.1.3** (from 2.8); the Windows runner is back on
+  `windows-latest` (Nuitka 4.1.3 supports Visual Studio 2026).
 - Update to **beets 2.11.0** (unblocked by beets-filetote 1.3.5, which fixed its
   incompatibility with beets 2.11).
 - Fix the **lastgenre** plugin: bundle its `pylast` dependency — it silently

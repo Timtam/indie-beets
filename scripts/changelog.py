@@ -83,7 +83,7 @@ def render(version: str, notes: str = "") -> str:
         ("fpcalc (Chromaprint)", stage_binaries.CHROMAPRINT_VERSION,
          stage_binaries.CHROMAPRINT_VERSION, stage_binaries.CHROMAPRINT_VERSION),
         ("GStreamer", stage_gstreamer.GSTREAMER_VERSION,
-         "distro (1.26.x)", "— (not bundled)"),
+         "distro (1.26.x)", f"{stage_gstreamer.GSTREAMER_VERSION} (framework)"),
         ("beetcamp (bandcamp)", ext.get("beetcamp", "?"),
          ext.get("beetcamp", "?"), ext.get("beetcamp", "?")),
         ("beets-filetote (filetote)", ext.get("beets-filetote", "?"),
@@ -106,8 +106,9 @@ def render(version: str, notes: str = "") -> str:
         "",
         f"**Bundled beets plugins:** {', '.join(plugins)}.",
         "",
-        "_GStreamer (and the `bpd` plugin / `gstreamer` ReplayGain backend) is "
-        "bundled on Windows + Linux only; macOS is ffmpeg-only (Nuitka #3628)._",
+        "_GStreamer (the `gstreamer` ReplayGain backend + the `bpd` plugin) is "
+        "bundled on every platform — Windows, Linux (x86_64 + arm64) and macOS "
+        "universal2._",
     ]
     return "\n".join(lines)
 

@@ -71,7 +71,7 @@ from the usual location, so your settings survive upgrades.
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| GStreamer        | 1.26.11 MSVC (Windows) · distro packages (Linux x86_64 + arm64) · **not on macOS** (see below) |
+| GStreamer        | 1.26.11 — MSVC runtime (Windows) · distro packages (Linux x86_64 + arm64) · universal framework (macOS) |
 | Platforms        | Windows x86_64 · Linux x86_64 · Linux arm64 · macOS universal2 (Intel + Apple Silicon) |
 
 ### Version numbers & releases
@@ -124,21 +124,20 @@ may require additional bundling work; open an issue if one you need is missing.)
 |------|---------|---------|
 | `ffmpeg` / `ffprobe` | `convert`, `replaygain` | Transcoding and EBU R128 loudness analysis. |
 | `fpcalc` (Chromaprint) | `chroma` | Acoustic fingerprinting for tag lookup. |
-| **GStreamer** (Windows, Linux) | `gstreamer` ReplayGain backend, `bpd` | Full GStreamer runtime + plugins + PyGObject. |
+| **GStreamer** (all platforms) | `gstreamer` ReplayGain backend, `bpd` | Full GStreamer runtime + plugins + PyGObject. |
 
-> **GStreamer is bundled on Windows and Linux only.** The everyday workflow
-> doesn't need it — ffmpeg covers transcoding and ReplayGain, and `fpcalc`
-> decodes audio for fingerprinting on its own — so it stays opt-in via your
-> config (`replaygain.backend: gstreamer` or the `bpd` plugin).
+> **GStreamer is bundled on every platform** (Windows, Linux x86_64/arm64, and
+> macOS universal2). The everyday workflow doesn't need it — ffmpeg covers
+> transcoding and ReplayGain, and `fpcalc` decodes audio for fingerprinting on
+> its own — so it stays opt-in via your config (`replaygain.backend: gstreamer`
+> or the `bpd` plugin).
 >
-> **Why not on macOS?** Nuitka's macOS dependency scanner aborts when it walks
-> the GStreamer Python bindings' link to `libglib`
-> ([Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628), unresolved) —
-> and it fails whether that dependency is referenced via `@rpath` or rewritten
-> to an absolute path, so no packaging workaround gets past it (the upstream
-> `--noinclude-dlls` / `--nofollow-import-to` flags don't help either). macOS
-> therefore ships ffmpeg-only (which still covers transcoding + ReplayGain); the
-> only feature lost is the `bpd` server. We'll revisit once the Nuitka bug is fixed.
+> macOS GStreamer was previously blocked by a Nuitka dependency-scan bug
+> ([Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628)); **Nuitka 4.1.3
+> fixed it**, so the macOS bundle now ships the full GStreamer battery too. Its
+> CI build proves self-containment the honest way: the smoke test runs the
+> `gstreamer` ReplayGain backend *after the system GStreamer framework has been
+> moved aside*, so it can only succeed via the bundle's own staged libraries.
 
 ---
 
@@ -185,7 +184,7 @@ workflow*) always build all platforms.
 | `src/indie_beets/runtime_env.py` | Points beets at the bundled binaries at startup |
 | `scripts/build.py` | Nuitka build driver |
 | `scripts/stage_binaries.py` | Downloads/stages ffmpeg, fpcalc (pinned versions) |
-| `scripts/stage_gstreamer.py` | Wires the GStreamer MSVC runtime into the build + bundle (Windows) |
+| `scripts/stage_gstreamer.py` | Stages GStreamer plugins + libraries into the bundle (Windows MSVC runtime · Linux ldd+patchelf · macOS framework + otool/@loader_path) |
 | `scripts/lipo_merge.py` | Fuses the arm64 + x86_64 builds into a macOS universal2 tree |
 | `scripts/package.py` | Builds a local release archive (`-dev`) |
 | `scripts/next_version.py` | Computes the next `<beets>-<build>` release version from git tags |
@@ -200,8 +199,9 @@ workflow*) always build all platforms.
 - [x] Bundled ffmpeg + fpcalc, wired up automatically at runtime
 - [x] Multi-OS CI matrix and release archives
 - [x] External plugins: beetcamp + beets-filetote
-- [x] GStreamer bundling on Windows + Linux (`gstreamer` ReplayGain backend, `bpd`)
-- [ ] GStreamer bundling on macOS — blocked by [Nuitka #3628](https://github.com/Nuitka/Nuitka/issues/3628)
+- [x] GStreamer bundling on **all platforms** — Windows, Linux x86_64/arm64, and
+      macOS universal2 (`gstreamer` ReplayGain backend, `bpd`); macOS unblocked by
+      Nuitka 4.1.3 fixing [#3628](https://github.com/Nuitka/Nuitka/issues/3628)
 - [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
       support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)

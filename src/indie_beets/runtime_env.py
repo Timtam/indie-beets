@@ -44,6 +44,34 @@ def _prepend_path(var: str, value: Path) -> None:
     os.environ[var] = os.pathsep.join([entry, *parts])
 
 
+def _preload_macos_gstreamer(gst_lib: Path) -> None:
+    """macOS: preload the GLib/GStreamer core dylibs by absolute path.
+
+    GObject-Introspection typelibs record their shared library by *bare* leaf
+    name (e.g. ``libgstreamer-1.0.0.dylib``), and girepository loads it with a
+    plain ``dlopen()``. On macOS a bare-name dlopen does NOT consult ``@rpath``
+    and only searches ``DYLD_*_LIBRARY_PATH`` — which dyld caches at process
+    launch, so the value we set above is too late to help. It would therefore
+    miss our bundled copies and the ``import gi.repository.Gst`` would fail.
+
+    But once a dylib is resident, a later dlopen by leaf name returns the loaded
+    image. So we load the core libs from their absolute bundle path up front
+    (each pulls in its siblings via the baked ``@loader_path`` rpath); the
+    bare-name typelib loads then resolve to these. Plugin-specific gst libs
+    (audio/base/...) are pulled in afterwards by ``Gst.init()``'s registry scan.
+    """
+    import ctypes
+
+    for pattern in ("libg*-2.0*.dylib", "libgst*-1.0*.dylib"):
+        for lib in sorted(gst_lib.glob(pattern)):
+            try:
+                ctypes.CDLL(str(lib))
+            except OSError:
+                # A lib that can't load standalone (unmet leaf dep) is fine —
+                # what matters is that the typelib targets become resident.
+                pass
+
+
 def setup() -> None:
     """Point beets at the bundled helper binaries and libraries."""
     root = bundle_root()
@@ -89,6 +117,9 @@ def setup() -> None:
             _prepend_path("DYLD_LIBRARY_PATH", root)
             if gst_lib.is_dir():
                 _prepend_path("DYLD_LIBRARY_PATH", gst_lib)
+                # rpath isn't enough on macOS: girepository dlopens typelib
+                # libraries by bare name, which ignores @rpath. Preload them.
+                _preload_macos_gstreamer(gst_lib)
         elif sys.platform.startswith("linux"):
             _prepend_path("LD_LIBRARY_PATH", root)
             if gst_lib.is_dir():

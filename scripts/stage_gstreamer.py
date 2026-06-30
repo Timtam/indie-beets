@@ -39,6 +39,9 @@ RUNTIME_URL = f"{_BASE}/{RUNTIME_MSI}"
 # Where the GStreamer tree lands inside an `msiexec /a` administrative install.
 _REL_ROOT = Path("PFiles64") / "gstreamer" / "1.0" / "msvc_x86_64"
 
+# The official universal GStreamer .pkg installs here (set up by the CI workflow).
+_MACOS_FRAMEWORK = Path("/Library/Frameworks/GStreamer.framework/Versions/1.0")
+
 
 def _download(url: str, dest: Path) -> None:
     if dest.exists():
@@ -218,9 +221,148 @@ def _set_rpath(sofile: Path, rpath: str) -> None:
         print(f"  patchelf skipped {sofile.name}: {e}")
 
 
+def _otool_deps(path: Path) -> list[str]:
+    """Dependency install-names of a Mach-O file (via `otool -L`).
+
+    Skips the file's own id line and the `... (architecture x86_64):` headers
+    that appear for fat binaries; returns the raw install-names (which for the
+    GStreamer framework are all `@rpath/<basename>`, plus some `/usr/lib` ones).
+    """
+    out = subprocess.run(["otool", "-L", str(path)], capture_output=True, text=True).stdout
+    deps: list[str] = []
+    for line in out.splitlines():
+        line = line.strip()
+        # Real dep lines start with the install-name path; headers don't.
+        if not (line.startswith("@") or line.startswith("/")):
+            continue
+        dep = line.split(" (", 1)[0].strip()
+        if dep and Path(dep).name != path.name:  # drop self-id
+            deps.append(dep)
+    return deps
+
+
+def _resolve_mac_dep(dep: str, fwlib: Path) -> Path | None:
+    """Map an otool install-name to a real file in the framework, or None to skip.
+
+    OS-provided libs (/usr/lib, /System) are left to the system. Everything the
+    framework provides is referenced as @rpath/<basename> (or, rarely, by an
+    absolute framework path), which we resolve to <framework>/lib/<basename>.
+    """
+    if dep.startswith(("/usr/lib/", "/System/")):
+        return None
+    base = Path(dep).name
+    if dep.startswith("@"):  # @rpath / @loader_path / @executable_path
+        cand = fwlib / base
+        return cand if cand.exists() else None
+    p = Path(dep)
+    if str(p).startswith(str(_MACOS_FRAMEWORK)) and p.exists():
+        return p
+    return None  # foreign absolute path (e.g. homebrew) — don't bundle
+
+
+def _fix_mac(binary: Path, *rpaths: str) -> None:
+    """Add relocatable @loader_path rpaths, then ad-hoc re-sign.
+
+    install_name_tool invalidates a Mach-O's code signature, and arm64 refuses to
+    load a dylib with a broken/absent signature, so every touched file must be
+    re-signed (ad-hoc, `-s -`). -add_rpath errors if the rpath already exists;
+    we tolerate that (idempotent re-runs). Signing happens once, after all rpaths.
+    """
+    for rpath in rpaths:
+        subprocess.run(
+            ["install_name_tool", "-add_rpath", rpath, str(binary)],
+            capture_output=True, text=True,
+        )
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", str(binary)],
+        capture_output=True, text=True,
+    )
+
+
+def _bundle_macos(dist: Path) -> None:
+    """Stage the GStreamer framework plugins + their dylib closure (macOS).
+
+    Mirrors the Linux path: Nuitka bundles gi/_gi.so but treats glib/gst core
+    libs as system (@rpath, unresolved), so we copy the plugins AND walk the otool
+    closure of (plugins + gi) to bring every framework dylib into the bundle, then
+    bake @loader_path rpaths so the loader resolves the @rpath/<basename> refs
+    WITHOUT DYLD_LIBRARY_PATH (which dyld reads only at process start, and which
+    SIP strips anyway). This is the macOS analogue of the $ORIGIN patchelf step.
+    """
+    fw = _MACOS_FRAMEWORK
+    fwlib = fw / "lib"
+    if not fwlib.is_dir():
+        raise RuntimeError(f"GStreamer framework not found at {fw}")
+
+    libdir = dist / "gstreamer" / "lib"
+    plug_dst = libdir / "gstreamer-1.0"
+    if plug_dst.exists():
+        shutil.rmtree(plug_dst)
+    plug_dst.mkdir(parents=True, exist_ok=True)
+
+    # Plugins (dlopen'd at runtime; Nuitka never sees them). .dylib only, no .a.
+    for p in (fwlib / "gstreamer-1.0").glob("*.dylib"):
+        shutil.copy2(p, plug_dst / p.name)
+    n_plug = len(list(plug_dst.glob("*.dylib")))
+
+    # Typelibs: Nuitka's gi plugin bundles these too, but stage a copy where
+    # runtime_env points GI_TYPELIB_PATH (belt-and-suspenders, harmless).
+    tl_src = fwlib / "girepository-1.0"
+    if tl_src.is_dir():
+        tl_dst = libdir / "girepository-1.0"
+        if tl_dst.exists():
+            shutil.rmtree(tl_dst)
+        shutil.copytree(tl_src, tl_dst)
+
+    # Closure: seed with the plugins + the bundled gi extension(s).
+    seeds = list(plug_dst.glob("*.dylib")) + list(dist.rglob("_gi*.so"))
+    seen: set[str] = set()
+    worklist = list(seeds)
+    to_copy: dict[str, Path] = {}
+    while worklist:
+        item = worklist.pop()
+        for dep in _otool_deps(item):
+            if dep in seen:
+                continue
+            seen.add(dep)
+            src = _resolve_mac_dep(dep, fwlib)
+            if src is None:
+                continue
+            base = src.name
+            # Skip libs Nuitka already placed in the bundle root (avoid dupes).
+            if (dist / base).exists() or base in to_copy:
+                continue
+            to_copy[base] = src
+            worklist.append(src)
+
+    for base, src in sorted(to_copy.items()):
+        shutil.copy2(src, libdir / base)
+
+    # Bake @loader_path rpaths (the macOS $ORIGIN), then re-sign. Each binary gets
+    # both the gstreamer/lib location (where we stage the closure) AND the bundle
+    # root (where Nuitka stages libpython + image/codec libs), so a dep resolves
+    # wherever it actually landed:
+    #   - staged libs (gstreamer/lib/)        -> @loader_path , @loader_path/../..
+    #   - plugins     (gstreamer/lib/gstreamer-1.0/) -> @loader_path/.. , @loader_path/../../..
+    #   - bundled gi  (gi/)                    -> @loader_path/../gstreamer/lib , @loader_path/..
+    for dy in libdir.glob("*.dylib"):
+        _fix_mac(dy, "@loader_path", "@loader_path/../..")
+    for dy in plug_dst.glob("*.dylib"):
+        _fix_mac(dy, "@loader_path/..", "@loader_path/../../..")
+    gi_dir = dist / "gi"
+    if gi_dir.is_dir():
+        for so in gi_dir.rglob("_gi*.so"):
+            _fix_mac(so, "@loader_path/../gstreamer/lib", "@loader_path/..")
+
+    print(f"Staged {n_plug} plugins + {len(to_copy)} dylibs into {libdir}")
+
+
 def bundle(dist: Path) -> None:
     if sys.platform.startswith("linux"):
         _bundle_linux(dist)
+        return
+    if sys.platform == "darwin":
+        _bundle_macos(dist)
         return
     root = gst_root()
     dest = dist / "gstreamer"
