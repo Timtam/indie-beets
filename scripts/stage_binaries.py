@@ -180,6 +180,12 @@ def _run_build_step(cmd: list[str]) -> None:
         raise RuntimeError(f"metaflac build step failed: {cmd[0]}")
 
 
+# Package managers whose libraries must never end up in the bundle: they live
+# outside the OS and would not exist on a user's machine (and on an Apple Silicon
+# runner Homebrew is arm64-only, which also breaks the x86_64 cross build).
+_FOREIGN_LIB_PREFIXES = ("/opt/homebrew", "/usr/local", "/opt/local", "/home/linuxbrew")
+
+
 def _cmake_metaflac(src: Path, build: Path, out: Path, *, arch: str | None) -> None:
     """Configure + build metaflac for ONE architecture, leaving it at ``out``."""
     configure = [
@@ -192,6 +198,12 @@ def _cmake_metaflac(src: Path, build: Path, out: Path, *, arch: str | None) -> N
         "-DBUILD_TESTING=OFF",
         "-DBUILD_DOCS=OFF",
         "-DINSTALL_MANPAGES=OFF",
+        # Keep FLAC's find_package(Iconv) away from package-manager trees: it
+        # otherwise links Homebrew's libiconv/libintl, which would make the
+        # binary depend on /opt/homebrew (absent on users' machines) and fails
+        # the x86_64 cross build outright, since Homebrew here is arm64-only.
+        # Without them CMake falls back to the iconv built into the platform libc.
+        f"-DCMAKE_IGNORE_PREFIX_PATH={';'.join(_FOREIGN_LIB_PREFIXES)}",
     ]
     if arch:
         configure.append(f"-DCMAKE_OSX_ARCHITECTURES={arch}")
@@ -209,6 +221,33 @@ def _cmake_metaflac(src: Path, build: Path, out: Path, *, arch: str | None) -> N
         built = candidates[0]
     shutil.copy2(built, out)
     out.chmod(0o755)
+
+
+def _assert_self_contained(binary: Path) -> None:
+    """Fail if ``binary`` links against anything outside the OS.
+
+    A metaflac that quietly picked up a Homebrew/MacPorts library still runs on
+    the build machine but breaks on a user's, so check it here rather than
+    discovering it after release.
+    """
+    if sys.platform == "darwin":
+        cmd = ["otool", "-L", str(binary)]
+    elif sys.platform.startswith("linux"):
+        cmd = ["ldd", str(binary)]
+    else:
+        return
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    offenders = [
+        line.strip()
+        for line in proc.stdout.splitlines()
+        if any(prefix in line for prefix in _FOREIGN_LIB_PREFIXES)
+    ]
+    if offenders:
+        raise RuntimeError(
+            f"{binary.name} links against non-system libraries "
+            f"(would not exist on a user's machine): {offenders}"
+        )
+    print(f"  {binary.name}: no foreign library dependencies")
 
 
 def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
@@ -242,6 +281,7 @@ def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
             _lipo(slices, dest / "metaflac")
         else:
             _cmake_metaflac(src, tmpdir / "build", dest / "metaflac", arch=None)
+    _assert_self_contained(dest / "metaflac")
 
 
 def _stage_metaflac(dest: Path, *, universal: bool, key: str) -> None:
