@@ -61,7 +61,7 @@ jobs:
           .venv/bin/pip uninstall -y pathlib
       - name: Build standalone bundle (Nuitka + gi)
         run: .venv/bin/python scripts/build.py --with-gstreamer
-      - name: Stage bundled binaries (ffmpeg, fpcalc)
+      - name: Stage bundled binaries (ffmpeg, fpcalc, metaflac)
         run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
       - name: Stage GStreamer plugins + lib closure into bundle
         run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
@@ -73,8 +73,10 @@ jobs:
             ubuntu:24.04 bash -c '
               echo "--- ldd of bundled _gi (rpath should resolve glib) ---"
               ldd /bundle/gi/_gi*.so 2>&1 | grep -iE "glib|gobject|girepository|not found" || true
-              echo "--- smoke ---"
+              echo "--- smoke (gstreamer) ---"
               bash /smoke.sh /bundle gstreamer
+              echo "--- smoke (metaflac, FLAC) ---"
+              bash /smoke.sh /bundle metaflac
             '
       - name: Upload bundle
         uses: actions/upload-artifact@v4
@@ -118,7 +120,7 @@ jobs:
           .venv/bin/pip uninstall -y pathlib
       - name: Build standalone bundle (Nuitka + gi)
         run: .venv/bin/python scripts/build.py --with-gstreamer
-      - name: Stage bundled binaries (ffmpeg, fpcalc)
+      - name: Stage bundled binaries (ffmpeg, fpcalc, metaflac)
         run: .venv/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
       - name: Stage GStreamer plugins + lib closure into bundle
         run: .venv/bin/python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
@@ -130,8 +132,10 @@ jobs:
             ubuntu:24.04 bash -c '
               echo "--- ldd of bundled _gi (rpath should resolve glib) ---"
               ldd /bundle/gi/_gi*.so 2>&1 | grep -iE "glib|gobject|girepository|not found" || true
-              echo "--- smoke ---"
+              echo "--- smoke (gstreamer) ---"
               bash /smoke.sh /bundle gstreamer
+              echo "--- smoke (metaflac, FLAC) ---"
+              bash /smoke.sh /bundle metaflac
             '
       - name: Upload bundle
         uses: actions/upload-artifact@v4
@@ -170,12 +174,14 @@ jobs:
         run: .venv\Scripts\python scripts/stage_gstreamer.py prepare --venv .venv
       - name: Build standalone bundle (Nuitka + gi)
         run: .venv\Scripts\python scripts/build.py --with-gstreamer
-      - name: Stage helper binaries (ffmpeg, fpcalc)
+      - name: Stage helper binaries (ffmpeg, fpcalc, metaflac)
         run: .venv\Scripts\python scripts/stage_binaries.py --dest build/indie_beets.dist/bin
       - name: Stage GStreamer runtime into bundle
         run: .venv\Scripts\python scripts/stage_gstreamer.py bundle --dist build/indie_beets.dist
       - name: Smoke test (GStreamer ReplayGain)
         run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
+      - name: Smoke test (metaflac ReplayGain, FLAC)
+        run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend metaflac
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -259,7 +265,7 @@ jobs:
             --x86_64 build/x86_64/indie_beets.dist \
             --out build/indie_beets.dist
 
-      - name: Stage universal binaries (ffmpeg, fpcalc)
+      - name: Stage universal binaries (ffmpeg, fpcalc, metaflac)
         run: .venv-arm64/bin/python scripts/stage_binaries.py --dest build/indie_beets.dist/bin --universal
 
       - name: Stage GStreamer plugins + dylib closure into bundle
@@ -271,7 +277,9 @@ jobs:
           # the bundle can only succeed via its own staged libs + baked rpaths.
           sudo mv /Library/Frameworks/GStreamer.framework /tmp/GStreamer.framework.away
           .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
-          echo "Architectures in the executable:"; lipo -archs build/indie_beets.dist/beet
+          .venv-arm64/bin/python scripts/smoke.py --dist build/indie_beets.dist --backend metaflac
+          echo "Architectures in the executable:"
+          for b in beet bin/metaflac; do echo -n "  $b: "; lipo -archs "build/indie_beets.dist/$b"; done
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4

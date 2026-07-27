@@ -30,7 +30,9 @@ def _exe(dist: Path, name: str) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", required=True)
-    ap.add_argument("--backend", default="ffmpeg", choices=["ffmpeg", "gstreamer"])
+    ap.add_argument(
+        "--backend", default="ffmpeg", choices=["ffmpeg", "gstreamer", "metaflac"]
+    )
     args = ap.parse_args()
 
     dist = Path(args.dist).resolve()
@@ -42,10 +44,13 @@ def main() -> int:
         music = work / "music"
         music.mkdir()
         # 15 s of pink noise = real, fingerprintable/analyzable content.
+        # The metaflac backend only handles FLAC (SUPPORTED_FORMATS={"FLAC"}),
+        # so give it a FLAC file; the other backends are format-agnostic.
+        ext = "flac" if args.backend == "metaflac" else "mp3"
         subprocess.run(
             [str(ffmpeg), "-hide_banner", "-loglevel", "error", "-f", "lavfi",
              "-i", "anoisesrc=d=15:color=pink", "-metadata", "title=Smoke",
-             "-metadata", "artist=indie-beets", str(music / "smoke.mp3")],
+             "-metadata", "artist=indie-beets", str(music / f"smoke.{ext}")],
             check=True,
         )
         (work / "config.yaml").write_text(

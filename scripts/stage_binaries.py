@@ -1,7 +1,8 @@
 """Download and stage the bundled helper binaries (the "batteries").
 
 Populates a ``bin/`` directory with ``ffmpeg``/``ffprobe`` (transcoding,
-ReplayGain) and ``fpcalc`` (acoustic fingerprinting for the chroma plugin).
+ReplayGain), ``fpcalc`` (acoustic fingerprinting for the chroma plugin) and
+``metaflac`` (beets' FLAC-only ReplayGain backend).
 
 Platforms:
 - Windows / Linux: static ffmpeg from BtbN, fpcalc from Chromaprint.
@@ -9,6 +10,8 @@ Platforms:
   fpcalc from Chromaprint. With ``--universal`` (used in CI on the Apple Silicon
   runner) the two macOS arches are lipo-merged into universal2 binaries and the
   ready-made universal fpcalc is used, so one bundle runs on Intel + Apple Silicon.
+- metaflac: prebuilt from Xiph on Windows (the only platform they publish
+  binaries for), compiled from the release tarball everywhere else.
 
 GStreamer is handled separately (later phase). All versions/URLs are pinned here.
 
@@ -47,6 +50,14 @@ FFMPEG_MACOS_VERSION = "6.1.1"  # ffmpeg version on macOS (for changelog)
 FFMPEG_STATIC_BASE = (
     f"https://github.com/eugeneware/ffmpeg-static/releases/download/{FFMPEG_STATIC_TAG}"
 )
+# metaflac (FLAC tools) — powers beets 2.13's `metaflac` ReplayGain backend, which
+# beets locates through PATH (shutil.which), i.e. our staged bin/ directory.
+# Xiph publishes prebuilt binaries for Windows ONLY, so the other platforms build
+# it from the release tarball (see _build_metaflac).
+FLAC_VERSION = "1.5.0"
+FLAC_BASE = f"https://github.com/xiph/flac/releases/download/{FLAC_VERSION}"
+FLAC_WIN_ZIP = f"{FLAC_BASE}/flac-{FLAC_VERSION}-win.zip"
+FLAC_SRC_TARBALL = f"{FLAC_BASE}/flac-{FLAC_VERSION}.tar.xz"
 
 
 def platform_key() -> str:
@@ -132,6 +143,82 @@ def _lipo(inputs: list[Path], output: Path) -> None:
     output.chmod(0o755)
 
 
+def _stage_metaflac_windows(dest: Path) -> None:
+    """Extract the official Win64 metaflac.exe + libFLAC.dll.
+
+    The zip ships Win32/ and Win64/ copies with identical basenames, so this
+    matches on the archive path prefix instead of reusing _extract_members
+    (which flattens by basename and would let Win32 clobber Win64).
+    metaflac.exe links libFLAC dynamically; the DLL sits next to it in bin/,
+    which is the first place Windows looks for a program's dependent DLLs.
+    """
+    data = _download(FLAC_WIN_ZIP)
+    wanted = {"metaflac.exe", "libFLAC.dll"}
+    found: set[str] = set()
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        for info in zf.infolist():
+            parts = Path(info.filename).parts
+            if len(parts) >= 2 and parts[-2] == "Win64" and parts[-1] in wanted:
+                with zf.open(info) as src, (dest / parts[-1]).open("wb") as out:
+                    shutil.copyfileobj(src, out)
+                found.add(parts[-1])
+    if missing := wanted - found:
+        raise RuntimeError(f"flac zip did not contain expected Win64 files: {missing}")
+
+
+def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
+    """Build a static metaflac from the FLAC release tarball (Linux/macOS).
+
+    Xiph ships no Linux/macOS binaries, so we compile the one tool we need.
+    FLAC defaults to a static build (BUILD_SHARED_LIBS=OFF) and dropping Ogg
+    support leaves no external dependencies, so the result is a self-contained
+    binary. On macOS CMake can emit a universal2 binary directly via
+    CMAKE_OSX_ARCHITECTURES, so no lipo step is needed here.
+    """
+    data = _download(FLAC_SRC_TARBALL)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        with tarfile.open(fileobj=io.BytesIO(data)) as tf:
+            tf.extractall(tmpdir)  # noqa: S202 (pinned upstream release)
+        src = tmpdir / f"flac-{FLAC_VERSION}"
+        build = tmpdir / "build"
+        configure = [
+            "cmake", "-S", str(src), "-B", str(build),
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DBUILD_SHARED_LIBS=OFF",   # static libFLAC -> standalone binary
+            "-DWITH_OGG=OFF",            # drops the only external dependency
+            "-DBUILD_CXXLIBS=OFF",       # libFLAC++ is unused by metaflac
+            "-DBUILD_EXAMPLES=OFF",
+            "-DBUILD_TESTING=OFF",
+            "-DBUILD_DOCS=OFF",
+            "-DINSTALL_MANPAGES=OFF",
+        ]
+        if universal:
+            configure.append("-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64")
+        print(f"  building metaflac {FLAC_VERSION} from source")
+        subprocess.run(configure, check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["cmake", "--build", str(build), "--config", "Release",
+             "--target", "metaflac", "--parallel"],
+            check=True, capture_output=True, text=True,
+        )
+        built = build / "src" / "metaflac" / "metaflac"
+        if not built.exists():  # be forgiving about generator layout
+            candidates = [p for p in build.rglob("metaflac") if p.is_file()]
+            if not candidates:
+                raise RuntimeError("metaflac build produced no binary")
+            built = candidates[0]
+        shutil.copy2(built, dest / "metaflac")
+        (dest / "metaflac").chmod(0o755)
+
+
+def _stage_metaflac(dest: Path, *, universal: bool, key: str) -> None:
+    if key == "win64":
+        _stage_metaflac_windows(dest)
+    else:
+        _build_metaflac(dest, universal=universal)
+
+
 def _stage_macos(dest: Path, *, universal: bool, key: str) -> None:
     """Stage ffmpeg/ffprobe/fpcalc on macOS (per-arch or universal2)."""
     if universal:
@@ -193,6 +280,8 @@ def stage(dest: Path, *, universal: bool = False) -> None:
         _stage_macos(dest, universal=universal, key=key)
     else:
         _stage_archive_platform(dest, key)
+
+    _stage_metaflac(dest, universal=universal, key=key)
 
     print("Staged:", ", ".join(sorted(p.name for p in dest.iterdir())))
 

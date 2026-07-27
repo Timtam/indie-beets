@@ -13,9 +13,12 @@ BACKEND="${2:-gstreamer}"
 work="$(mktemp -d)"
 mkdir -p "$work/music"
 
+# The metaflac backend only handles FLAC; the others are format-agnostic.
+if [[ "$BACKEND" == "metaflac" ]]; then EXT=flac; else EXT=mp3; fi
+
 "$BUNDLE/bin/ffmpeg" -hide_banner -loglevel error -f lavfi \
   -i "anoisesrc=d=15:color=pink" -metadata title=Smoke -metadata artist=indie-beets \
-  "$work/music/s.mp3"
+  "$work/music/s.$EXT"
 
 export BEETSDIR="$work/bd"
 mkdir -p "$BEETSDIR"

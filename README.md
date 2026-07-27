@@ -67,10 +67,11 @@ from the usual location, so your settings survive upgrades.
 
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
-| **beets**        | **2.12.0** (the release number tracks this)   |
+| **beets**        | **2.13.0** (the release number tracks this)   |
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
+| metaflac (FLAC)  | 1.5.0 — Xiph binary (Windows) · built from source (Linux/macOS) |
 | GStreamer        | 1.26.11 — MSVC runtime (Windows) · distro packages (Linux x86_64 + arm64) · universal framework (macOS) |
 | Platforms        | Windows x86_64 · Linux x86_64 · Linux arm64 · macOS universal2 (Intel + Apple Silicon) |
 
@@ -124,6 +125,7 @@ may require additional bundling work; open an issue if one you need is missing.)
 |------|---------|---------|
 | `ffmpeg` / `ffprobe` | `convert`, `replaygain` | Transcoding and EBU R128 loudness analysis. |
 | `fpcalc` (Chromaprint) | `chroma` | Acoustic fingerprinting for tag lookup. |
+| `metaflac` (FLAC tools) | `metaflac` ReplayGain backend | Xiph's reference FLAC tagger — writes native ReplayGain tags. **FLAC only.** |
 | **GStreamer** (all platforms) | `gstreamer` ReplayGain backend, `bpd` | Full GStreamer runtime + plugins + PyGObject. |
 
 > **GStreamer is bundled on every platform** (Windows, Linux x86_64/arm64, and
@@ -138,6 +140,15 @@ may require additional bundling work; open an issue if one you need is missing.)
 > CI build proves self-containment the honest way: the smoke test runs the
 > `gstreamer` ReplayGain backend *after the system GStreamer framework has been
 > moved aside*, so it can only succeed via the bundle's own staged libraries.
+
+> **ReplayGain backends: which to pick?** `ffmpeg` (the default) handles every
+> format and needs no configuration. `metaflac` — added in beets 2.13 and bundled
+> since indie-beets 2.13.0 — is Xiph's reference implementation and writes native
+> FLAC ReplayGain tags, but it **only processes FLAC files**; select it with
+> `replaygain.backend: metaflac` if your library is FLAC and you prefer the
+> reference tagger. `gstreamer` is the third option. beets finds all of them
+> automatically — they live in the bundle's `bin/`, which is prepended to `PATH`
+> at startup.
 
 ---
 
@@ -205,16 +216,18 @@ workflow*) always build all platforms.
 - [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
       support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)
-- [x] Track latest beets (now 2.12.0, with beets-filetote 1.3.6)
+- [x] Track latest beets (now 2.13.0, with beets-filetote 1.3.6)
+- [x] Bundled `metaflac`, so beets 2.13's FLAC ReplayGain backend works out of the box
 
 ---
 
 ## Licensing
 
 indie-beets is a packaging project; each bundled component keeps its own license.
-Notably, the bundled ffmpeg is a **GPL** static build, so the distributed
-archives include GPL-licensed software. beets itself is MIT-licensed. Review the
-individual components' licenses before redistributing.
+Notably, the bundled ffmpeg is a **GPL** static build and `metaflac` (from the
+FLAC tools) is **GPLv2+**, so the distributed archives include GPL-licensed
+software. beets itself is MIT-licensed. Review the individual components'
+licenses before redistributing.
 
 ## A note on how this was built
 
