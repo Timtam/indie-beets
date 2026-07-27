@@ -166,50 +166,82 @@ def _stage_metaflac_windows(dest: Path) -> None:
         raise RuntimeError(f"flac zip did not contain expected Win64 files: {missing}")
 
 
+def _run_build_step(cmd: list[str]) -> None:
+    """Run a build command, surfacing its output if it fails.
+
+    Build errors are useless without the compiler's message, so on failure the
+    captured stdout/stderr is re-printed before raising.
+    """
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        print(f"  command failed: {' '.join(cmd)}", file=sys.stderr)
+        print(proc.stdout[-4000:], file=sys.stderr)
+        print(proc.stderr[-4000:], file=sys.stderr)
+        raise RuntimeError(f"metaflac build step failed: {cmd[0]}")
+
+
+def _cmake_metaflac(src: Path, build: Path, out: Path, *, arch: str | None) -> None:
+    """Configure + build metaflac for ONE architecture, leaving it at ``out``."""
+    configure = [
+        "cmake", "-S", str(src), "-B", str(build),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DBUILD_SHARED_LIBS=OFF",   # static libFLAC -> standalone binary
+        "-DWITH_OGG=OFF",            # drops the only external dependency
+        "-DBUILD_CXXLIBS=OFF",       # libFLAC++ is unused by metaflac
+        "-DBUILD_EXAMPLES=OFF",
+        "-DBUILD_TESTING=OFF",
+        "-DBUILD_DOCS=OFF",
+        "-DINSTALL_MANPAGES=OFF",
+    ]
+    if arch:
+        configure.append(f"-DCMAKE_OSX_ARCHITECTURES={arch}")
+    _run_build_step(configure)
+    _run_build_step(
+        ["cmake", "--build", str(build), "--config", "Release",
+         "--target", "metaflac", "--parallel"]
+    )
+    # UNIX generators put it here; FLAC only redirects output to objs/ if(NOT UNIX).
+    built = build / "src" / "metaflac" / "metaflac"
+    if not built.exists():  # be forgiving about generator layout
+        candidates = [p for p in build.rglob("metaflac") if p.is_file()]
+        if not candidates:
+            raise RuntimeError("metaflac build produced no binary")
+        built = candidates[0]
+    shutil.copy2(built, out)
+    out.chmod(0o755)
+
+
 def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
     """Build a static metaflac from the FLAC release tarball (Linux/macOS).
 
     Xiph ships no Linux/macOS binaries, so we compile the one tool we need.
     FLAC defaults to a static build (BUILD_SHARED_LIBS=OFF) and dropping Ogg
     support leaves no external dependencies, so the result is a self-contained
-    binary. On macOS CMake can emit a universal2 binary directly via
-    CMAKE_OSX_ARCHITECTURES, so no lipo step is needed here.
+    binary.
+
+    For universal2 we build each arch SEPARATELY and lipo them together, rather
+    than asking CMake for a single multi-arch build: FLAC probes the target CPU
+    with try_compile snippets that fail to compile unless exactly one of
+    __aarch64__/__x86_64__ is defined, and it bakes the result into one shared
+    config.h — so a combined arm64+x86_64 build breaks (and would in any case
+    give one slice the other's NEON/SSE settings).
     """
     data = _download(FLAC_SRC_TARBALL)
+    print(f"  building metaflac {FLAC_VERSION} from source")
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         with tarfile.open(fileobj=io.BytesIO(data)) as tf:
             tf.extractall(tmpdir)  # noqa: S202 (pinned upstream release)
         src = tmpdir / f"flac-{FLAC_VERSION}"
-        build = tmpdir / "build"
-        configure = [
-            "cmake", "-S", str(src), "-B", str(build),
-            "-DCMAKE_BUILD_TYPE=Release",
-            "-DBUILD_SHARED_LIBS=OFF",   # static libFLAC -> standalone binary
-            "-DWITH_OGG=OFF",            # drops the only external dependency
-            "-DBUILD_CXXLIBS=OFF",       # libFLAC++ is unused by metaflac
-            "-DBUILD_EXAMPLES=OFF",
-            "-DBUILD_TESTING=OFF",
-            "-DBUILD_DOCS=OFF",
-            "-DINSTALL_MANPAGES=OFF",
-        ]
         if universal:
-            configure.append("-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64")
-        print(f"  building metaflac {FLAC_VERSION} from source")
-        subprocess.run(configure, check=True, capture_output=True, text=True)
-        subprocess.run(
-            ["cmake", "--build", str(build), "--config", "Release",
-             "--target", "metaflac", "--parallel"],
-            check=True, capture_output=True, text=True,
-        )
-        built = build / "src" / "metaflac" / "metaflac"
-        if not built.exists():  # be forgiving about generator layout
-            candidates = [p for p in build.rglob("metaflac") if p.is_file()]
-            if not candidates:
-                raise RuntimeError("metaflac build produced no binary")
-            built = candidates[0]
-        shutil.copy2(built, dest / "metaflac")
-        (dest / "metaflac").chmod(0o755)
+            slices = []
+            for arch in ("arm64", "x86_64"):
+                out = tmpdir / f"metaflac-{arch}"
+                _cmake_metaflac(src, tmpdir / f"build-{arch}", out, arch=arch)
+                slices.append(out)
+            _lipo(slices, dest / "metaflac")
+        else:
+            _cmake_metaflac(src, tmpdir / "build", dest / "metaflac", arch=None)
 
 
 def _stage_metaflac(dest: Path, *, universal: bool, key: str) -> None:

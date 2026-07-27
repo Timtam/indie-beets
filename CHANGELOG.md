@@ -21,7 +21,8 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   Xiph's reference FLAC tagger and writes native FLAC ReplayGain tags, but only
   processes FLAC files — `ffmpeg` remains the default backend. Windows uses the
   official Xiph binary; Linux and macOS build it from the release tarball (static,
-  no Ogg), with macOS compiled straight to universal2.
+  no Ogg), with macOS building each architecture separately and lipo-merging them
+  into universal2.
 - Update to **beets 2.12.0** and **beets-filetote 1.3.6** (all 13 bundled plugins
   verified loading on 2.12). Also picks up **pylast 7.1.0** (the lastgenre
   dependency), which moves to a new `httpx2`-based HTTP stack — pinned to the
