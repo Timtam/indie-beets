@@ -10,8 +10,8 @@ Platforms:
   fpcalc from Chromaprint. With ``--universal`` (used in CI on the Apple Silicon
   runner) the two macOS arches are lipo-merged into universal2 binaries and the
   ready-made universal fpcalc is used, so one bundle runs on Intel + Apple Silicon.
-- metaflac: prebuilt from Xiph on Windows (the only platform they publish
-  binaries for), compiled from the release tarball everywhere else.
+- metaflac: compiled from the FLAC release tarball on every platform, as a single
+  static binary with no companion libraries.
 
 GStreamer is handled separately (later phase). All versions/URLs are pinned here.
 
@@ -52,11 +52,10 @@ FFMPEG_STATIC_BASE = (
 )
 # metaflac (FLAC tools) — powers beets 2.13's `metaflac` ReplayGain backend, which
 # beets locates through PATH (shutil.which), i.e. our staged bin/ directory.
-# Xiph publishes prebuilt binaries for Windows ONLY, so the other platforms build
-# it from the release tarball (see _build_metaflac).
+# Built from source on every platform (see _build_metaflac): Xiph only publishes
+# binaries for Windows, and that build needs a separate libFLAC.dll anyway.
 FLAC_VERSION = "1.5.0"
 FLAC_BASE = f"https://github.com/xiph/flac/releases/download/{FLAC_VERSION}"
-FLAC_WIN_ZIP = f"{FLAC_BASE}/flac-{FLAC_VERSION}-win.zip"
 FLAC_SRC_TARBALL = f"{FLAC_BASE}/flac-{FLAC_VERSION}.tar.xz"
 
 
@@ -143,29 +142,6 @@ def _lipo(inputs: list[Path], output: Path) -> None:
     output.chmod(0o755)
 
 
-def _stage_metaflac_windows(dest: Path) -> None:
-    """Extract the official Win64 metaflac.exe + libFLAC.dll.
-
-    The zip ships Win32/ and Win64/ copies with identical basenames, so this
-    matches on the archive path prefix instead of reusing _extract_members
-    (which flattens by basename and would let Win32 clobber Win64).
-    metaflac.exe links libFLAC dynamically; the DLL sits next to it in bin/,
-    which is the first place Windows looks for a program's dependent DLLs.
-    """
-    data = _download(FLAC_WIN_ZIP)
-    wanted = {"metaflac.exe", "libFLAC.dll"}
-    found: set[str] = set()
-    with zipfile.ZipFile(io.BytesIO(data)) as zf:
-        for info in zf.infolist():
-            parts = Path(info.filename).parts
-            if len(parts) >= 2 and parts[-2] == "Win64" and parts[-1] in wanted:
-                with zf.open(info) as src, (dest / parts[-1]).open("wb") as out:
-                    shutil.copyfileobj(src, out)
-                found.add(parts[-1])
-    if missing := wanted - found:
-        raise RuntimeError(f"flac zip did not contain expected Win64 files: {missing}")
-
-
 def _run_build_step(cmd: list[str]) -> None:
     """Run a build command, surfacing its output if it fails.
 
@@ -212,51 +188,79 @@ def _cmake_metaflac(src: Path, build: Path, out: Path, *, arch: str | None) -> N
         ["cmake", "--build", str(build), "--config", "Release",
          "--target", "metaflac", "--parallel"]
     )
-    # UNIX generators put it here; FLAC only redirects output to objs/ if(NOT UNIX).
-    built = build / "src" / "metaflac" / "metaflac"
-    if not built.exists():  # be forgiving about generator layout
-        candidates = [p for p in build.rglob("metaflac") if p.is_file()]
-        if not candidates:
+    # UNIX generators put it in src/metaflac/; on Windows FLAC redirects output to
+    # objs/ (it does that only `if(NOT UNIX)`) and MSVC adds a per-config subdir.
+    name = "metaflac.exe" if sys.platform == "win32" else "metaflac"
+    for candidate in (
+        build / "src" / "metaflac" / name,
+        build / "objs" / "Release" / name,
+    ):
+        if candidate.exists():
+            built = candidate
+            break
+    else:  # be forgiving about generator layout
+        found = [p for p in build.rglob(name) if p.is_file()]
+        if not found:
             raise RuntimeError("metaflac build produced no binary")
-        built = candidates[0]
+        built = found[0]
     shutil.copy2(built, out)
     out.chmod(0o755)
 
 
 def _assert_self_contained(binary: Path) -> None:
-    """Fail if ``binary`` links against anything outside the OS.
+    """Fail unless ``binary`` runs using nothing but the OS.
 
-    A metaflac that quietly picked up a Homebrew/MacPorts library still runs on
+    A metaflac that quietly picked up a Homebrew/MacPorts library still works on
     the build machine but breaks on a user's, so check it here rather than
-    discovering it after release.
+    discovering it after release. Two checks: inspect the recorded library paths
+    (otool/ldd), and actually execute the binary — the latter is what catches a
+    missing DLL on Windows, where a dynamically linked build dies with
+    STATUS_DLL_NOT_FOUND instead of reporting anything useful.
     """
     if sys.platform == "darwin":
         cmd = ["otool", "-L", str(binary)]
     elif sys.platform.startswith("linux"):
         cmd = ["ldd", str(binary)]
     else:
-        return
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    offenders = [
-        line.strip()
-        for line in proc.stdout.splitlines()
-        if any(prefix in line for prefix in _FOREIGN_LIB_PREFIXES)
-    ]
-    if offenders:
+        cmd = None
+    if cmd is not None:
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        offenders = [
+            line.strip()
+            for line in proc.stdout.splitlines()
+            if any(prefix in line for prefix in _FOREIGN_LIB_PREFIXES)
+        ]
+        if offenders:
+            raise RuntimeError(
+                f"{binary.name} links against non-system libraries "
+                f"(would not exist on a user's machine): {offenders}"
+            )
+
+    # Run it. We stage no companion libraries, so anything it still needs beyond
+    # the OS makes this fail — on Windows with 0xC0000135 (STATUS_DLL_NOT_FOUND),
+    # which the process exit status reports even though nothing is printed.
+    # NOTE: --help, not --version. metaflac's --version prints via a bare printf()
+    # while the rest of its output goes through FLAC's UTF-8 console layer; on
+    # Windows that mix trips the CRT and aborts with 0xC0000409. It's an upstream
+    # quirk in a path beets never calls (it uses --add-replay-gain / --show-tag),
+    # but it makes --version useless as a liveness check.
+    run = subprocess.run([str(binary), "--help"], capture_output=True, text=True)
+    if run.returncode != 0:
         raise RuntimeError(
-            f"{binary.name} links against non-system libraries "
-            f"(would not exist on a user's machine): {offenders}"
+            f"{binary.name} does not run standalone (exit {run.returncode}); "
+            f"it likely needs a library we do not ship"
         )
-    print(f"  {binary.name}: no foreign library dependencies")
+    print(f"  {binary.name}: self-contained (runs with no extra libraries)")
 
 
 def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
-    """Build a static metaflac from the FLAC release tarball (Linux/macOS).
+    """Build a static metaflac from the FLAC release tarball (every platform).
 
-    Xiph ships no Linux/macOS binaries, so we compile the one tool we need.
     FLAC defaults to a static build (BUILD_SHARED_LIBS=OFF) and dropping Ogg
-    support leaves no external dependencies, so the result is a self-contained
-    binary.
+    support leaves no external dependencies, so the result is a single
+    self-contained binary. We build it everywhere — including Windows, where
+    Xiph's prebuilt metaflac.exe would drag in a separate 0.5 MB libFLAC.dll;
+    building keeps every platform on one code path and ships one file.
 
     For universal2 we build each arch SEPARATELY and lipo them together, rather
     than asking CMake for a single multi-arch build: FLAC probes the target CPU
@@ -267,6 +271,7 @@ def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
     """
     data = _download(FLAC_SRC_TARBALL)
     print(f"  building metaflac {FLAC_VERSION} from source")
+    exe = ".exe" if sys.platform == "win32" else ""
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         with tarfile.open(fileobj=io.BytesIO(data)) as tf:
@@ -280,15 +285,12 @@ def _build_metaflac(dest: Path, *, universal: bool = False) -> None:
                 slices.append(out)
             _lipo(slices, dest / "metaflac")
         else:
-            _cmake_metaflac(src, tmpdir / "build", dest / "metaflac", arch=None)
-    _assert_self_contained(dest / "metaflac")
+            _cmake_metaflac(src, tmpdir / "build", dest / f"metaflac{exe}", arch=None)
+    _assert_self_contained(dest / f"metaflac{exe}")
 
 
 def _stage_metaflac(dest: Path, *, universal: bool, key: str) -> None:
-    if key == "win64":
-        _stage_metaflac_windows(dest)
-    else:
-        _build_metaflac(dest, universal=universal)
+    _build_metaflac(dest, universal=universal)
 
 
 def _stage_macos(dest: Path, *, universal: bool, key: str) -> None:

@@ -71,7 +71,7 @@ from the usual location, so your settings survive upgrades.
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
-| metaflac (FLAC)  | 1.5.0 — Xiph binary (Windows) · built from source (Linux/macOS) |
+| metaflac (FLAC)  | 1.5.0 — built from source on every platform (single static binary) |
 | GStreamer        | 1.26.11 — MSVC runtime (Windows) · distro packages (Linux x86_64 + arm64) · universal framework (macOS) |
 | Platforms        | Windows x86_64 · Linux x86_64 · Linux arm64 · macOS universal2 (Intel + Apple Silicon) |
 
