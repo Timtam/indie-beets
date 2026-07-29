@@ -342,3 +342,24 @@ jobs:
           name: indie-beets ${{ steps.meta.outputs.version }}
           body_path: notes.md
           files: out/*
+
+      # Close the book on this release: move the '## Unreleased' entries under
+      # the version just published, so the next release's notes contain only its
+      # own changes. Doing this by hand was forgotten, which is why earlier
+      # releases each repeated every previous entry.
+      - name: Rotate CHANGELOG for the published version
+        run: |
+          ver="${{ steps.meta.outputs.version }}"
+          python3 scripts/rotate_changelog.py --version "$ver"
+          if git diff --quiet -- CHANGELOG.md; then
+            echo "CHANGELOG unchanged; nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          # [skip ci] so this bookkeeping commit doesn't trigger another build.
+          git commit -m "Start a new Unreleased section after $ver [skip ci]"
+          # Land on the branch the release was cut from, tolerating a concurrent push.
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

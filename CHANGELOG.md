@@ -4,10 +4,11 @@ Manually-maintained notes for indie-beets releases.
 
 **How this works:** add notable changes under **`## Unreleased`** during
 development (plain bullet points). When a release is cut (the manual *Release*
-workflow), the Unreleased entries become the release notes, together with an
+workflow), those entries become that release's notes, together with an
 auto-generated table of the bundled component versions (beets, ffmpeg,
-GStreamer, …). After releasing, move the Unreleased entries under a heading for
-the version that was just published, and leave a fresh empty `## Unreleased`.
+GStreamer, …). The release job then moves them under a heading for the version it
+just published and leaves a fresh empty `## Unreleased`
+(`scripts/rotate_changelog.py`), so each release lists only its own changes.
 
 Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README.
 
@@ -26,6 +27,12 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   plugins were *not* enabled out of the box. They are now seeded into
   `beets-data/config.yaml` on first run (and never overwritten afterwards), so a
   fresh bundle starts with all 13 bundled plugins active.
+- Release notes now cover only the release they belong to. The `## Unreleased`
+  section was never emptied after a release, so every release repeated all
+  earlier entries; the release job now rotates it automatically.
+
+## 2.13.0-1
+
 - Update to **beets 2.13.0** (all 13 bundled plugins verified). No plugin updates
   were needed — beets-filetote 1.3.6, beets-vgmdb 1.3.5 and beetcamp 0.24.3 all
   work unchanged on 2.13.
@@ -38,6 +45,9 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   lipo-merged into universal2). The build verifies that the result links against
   nothing outside the OS and runs on its own, so a stray package-manager
   dependency can't slip into a release unnoticed.
+
+## 2.12.0-1
+
 - Update to **beets 2.12.0** and **beets-filetote 1.3.6** (all 13 bundled plugins
   verified loading on 2.12). Also picks up **pylast 7.1.0** (the lastgenre
   dependency), which moves to a new `httpx2`-based HTTP stack — pinned to the
@@ -49,10 +59,16 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   verified in CI by running the gstreamer smoke with the system framework hidden.
 - Upgrade the build to **Nuitka 4.1.3** (from 2.8); the Windows runner is back on
   `windows-latest` (Nuitka 4.1.3 supports Visual Studio 2026).
+
+## 2.11.0-1
+
 - Update to **beets 2.11.0** (unblocked by beets-filetote 1.3.5, which fixed its
   incompatibility with beets 2.11).
 - Fix the **lastgenre** plugin: bundle its `pylast` dependency — it silently
   failed to load in earlier releases.
+
+## 2.10.0-2
+
 - Add the **vgmdb** metadata source plugin (`beets-vgmdb`, enabled as `VGMplug`)
   — fetches album/track metadata from VGMdb.
 
