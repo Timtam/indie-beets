@@ -78,6 +78,8 @@ jobs:
               echo "--- smoke (metaflac, FLAC) ---"
               bash /smoke.sh /bundle metaflac
             '
+      - name: Verify portable state (no writes outside the bundle)
+        run: .venv/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -137,6 +139,8 @@ jobs:
               echo "--- smoke (metaflac, FLAC) ---"
               bash /smoke.sh /bundle metaflac
             '
+      - name: Verify portable state (no writes outside the bundle)
+        run: .venv/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -182,6 +186,8 @@ jobs:
         run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend gstreamer
       - name: Smoke test (metaflac ReplayGain, FLAC)
         run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend metaflac
+      - name: Verify portable state (no writes outside the bundle)
+        run: .venv\Scripts\python scripts/verify_portable.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -281,6 +287,8 @@ jobs:
           echo "Architectures in the executable:"
           for b in beet bin/metaflac; do echo -n "  $b: "; lipo -archs "build/indie_beets.dist/$b"; done
 
+      - name: Verify portable state (no writes outside the bundle)
+        run: .venv-arm64/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:

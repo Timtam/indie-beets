@@ -15,6 +15,7 @@ developer's system tools keep working.
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -42,6 +43,56 @@ def _prepend_path(var: str, value: Path) -> None:
     existing = os.environ.get(var, "")
     parts = [p for p in existing.split(os.pathsep) if p and p != entry]
     os.environ[var] = os.pathsep.join([entry, *parts])
+
+
+#: Directory (inside the bundle) that holds the user's beets state when running
+#: portably: config.yaml, library.db, state.pickle and beets' database backups.
+#: Not named "beets" because the frozen bundle already ships a `beets/` package.
+PORTABLE_DIR_NAME = "beets-data"
+
+
+def _setup_portable_beetsdir(root: Path) -> None:
+    """Keep beets' config and database inside the bundle instead of the OS.
+
+    beets otherwise stores everything in the platform config directory
+    (``%APPDATA%\\beets`` on Windows, ``~/.config/beets`` elsewhere), which
+    defeats the point of a download-and-run bundle: the program is portable but
+    its state is not. Pointing ``BEETSDIR`` at a folder inside the bundle moves
+    the whole set — beets resolves the relative ``library``/``statefile``
+    defaults against the config directory, so the database, the import state and
+    the schema-migration ``.bak`` files follow along.
+
+    This is beets' own supported override, so nothing is patched or guessed:
+      * if the user already set ``BEETSDIR``, we leave it alone;
+      * anything given an absolute path in config.yaml still wins.
+
+    If the bundle is not writable (read-only media, installed under Program
+    Files) we silently leave beets on its normal locations rather than failing.
+    """
+    if os.environ.get("BEETSDIR"):
+        return  # the user chose a location; respect it
+
+    beetsdir = root / PORTABLE_DIR_NAME
+    try:
+        beetsdir.mkdir(parents=True, exist_ok=True)
+        # Confirm we can actually write here, not just that the path exists.
+        probe = beetsdir / ".write-test"
+        probe.touch()
+        probe.unlink()
+    except OSError:
+        return  # read-only bundle: fall back to beets' standard directories
+
+    os.environ["BEETSDIR"] = str(beetsdir)
+
+    # Seed the shipped defaults on first run, so the bundled plugins are active
+    # out of the box. Never overwrite: after this the file belongs to the user.
+    config = beetsdir / "config.yaml"
+    default = root / "default_config.yaml"
+    if not config.exists() and default.is_file():
+        try:
+            shutil.copyfile(default, config)
+        except OSError:
+            pass  # a missing config just means beets uses its own defaults
 
 
 def _preload_macos_gstreamer(gst_lib: Path) -> None:
@@ -75,6 +126,9 @@ def _preload_macos_gstreamer(gst_lib: Path) -> None:
 def setup() -> None:
     """Point beets at the bundled helper binaries and libraries."""
     root = bundle_root()
+
+    # Keep beets' own state (config, database, import state) inside the bundle.
+    _setup_portable_beetsdir(root)
 
     # ffmpeg, fpcalc, ... — beets finds these by searching PATH.
     bin_dir = root / "bin"

@@ -111,6 +111,10 @@ def build_command(args: argparse.Namespace, plugins: list[str]) -> list[str]:
         # drops it and requests falls back to no encoding detection. Force it in
         # (needed by fetchart/lyrics and any network plugin handling text).
         "--include-package=charset_normalizer",
+        # Shipped defaults, seeded into the portable BEETSDIR on first run by
+        # runtime_env so the bundled plugins are active out of the box.
+        f"--include-data-file={REPO_ROOT / 'config' / 'default_config.yaml'}"
+        "=default_config.yaml",
     ]
 
     for module in UNUSED_HEAVY_DEPS:

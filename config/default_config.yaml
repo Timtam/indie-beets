@@ -1,8 +1,25 @@
-# indie-beets default configuration
+# indie-beets configuration
 #
-# Shipped inside the bundle as a sensible starting point. beets still reads the
-# user's own config (in their OS config dir) and overrides anything here, so
-# this only sets defaults that make the bundled batteries work out of the box.
+# This file was copied into `beets-data/` next to the program the first time you
+# ran it, and it is yours to edit — indie-beets never overwrites it.
+#
+# PORTABLE BY DEFAULT: the bundle keeps beets' own files (this config, the
+# library database, the import state and beets' database backups) in that
+# `beets-data/` folder, so moving or deleting the bundle takes everything with
+# it and nothing is left behind in your system's config directory. To use a
+# different location instead, set the BEETSDIR environment variable before
+# starting beets — that overrides all of this.
+#
+# Your MUSIC is a separate matter and is NOT stored in the bundle: beets manages
+# it wherever `directory` points (see below). Give it an absolute path if you
+# want your library somewhere specific.
+
+# Where beets puts imported music. Defaults to your Music folder.
+# directory: ~/Music
+#
+# For a fully self-contained setup (e.g. a USB stick), point it inside the
+# bundle instead — paths are relative to this file:
+# directory: music
 
 # Plugins that ship with the bundle. The user can trim or extend this list.
 plugins:

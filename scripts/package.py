@@ -50,10 +50,13 @@ def platform_tag() -> str:
 
 
 def add_extras(dist: Path) -> None:
-    """Drop a usable example config and the README into the bundle root."""
-    example = REPO_ROOT / "config" / "default_config.yaml"
-    if example.is_file():
-        shutil.copy2(example, dist / "config.example.yaml")
+    """Drop the README into the bundle root.
+
+    No example config is copied any more: the build embeds the shipped defaults
+    as ``default_config.yaml``, and runtime_env seeds them into the bundle's
+    ``beets-data/config.yaml`` on first run, so the user gets a live config
+    rather than a sample to copy by hand.
+    """
     readme = REPO_ROOT / "README.md"
     if readme.is_file():
         shutil.copy2(readme, dist / "README.md")

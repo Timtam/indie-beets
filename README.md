@@ -51,9 +51,35 @@ The result behaves exactly like the `beet` command you'd get from PyPI.
 > Nuitka can't produce a Windows-arm64 *standalone* bundle (it lacks the binary
 > dependency analysis for that target). We'll add one if that changes upstream.
 
-A `config.example.yaml` is included in the archive showing the bundled defaults;
-copy what you want into your own beets config. beets reads your personal config
-from the usual location, so your settings survive upgrades.
+### Portable by default
+
+The bundle keeps **beets' own files inside the bundle folder**, not in your
+system's config directory. On first run it creates a `beets-data/` folder next to
+the executable containing:
+
+| File | What it is |
+|------|------------|
+| `config.yaml` | your configuration — seeded from the bundled defaults, then yours to edit (never overwritten) |
+| `library.db` | the beets database, plus the `.bak` files beets writes when it migrates the schema |
+| `state.pickle` | import state |
+
+So the whole installation stays in one place: move it, copy it to a USB stick, or
+delete it — nothing is left behind in `%APPDATA%` (Windows) or `~/.config`
+(Linux/macOS), which is where beets would normally put all of this.
+
+Two ways to override it:
+
+- **Set `BEETSDIR`** before starting `beet` — it takes precedence over everything
+  below, so you can point the bundle at an existing beets setup.
+- **Edit `beets-data/config.yaml`** — any absolute path you set there wins, e.g.
+  `library: D:\music\library.db`.
+
+Your **music** is not stored in the bundle: beets manages it wherever `directory`
+points (your Music folder by default). The shipped config shows how to move it
+into the bundle too, if you want a fully self-contained setup.
+
+If the bundle sits somewhere unwritable (read-only media, `Program Files`), it
+quietly falls back to beets' normal locations instead of failing.
 
 > **Note on first launch:** the binaries are not code-signed yet, so macOS
 > Gatekeeper and Windows SmartScreen may warn on first run. Signing/notarization

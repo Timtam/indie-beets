@@ -13,6 +13,19 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **The bundle is now portable.** beets used to keep its configuration, database
+  and database backups in the OS config directory (`%APPDATA%\beets` on Windows,
+  `~/.config/beets` elsewhere), so the program was portable but its state was
+  not. It now keeps all of that in a `beets-data/` folder inside the bundle, so
+  moving or deleting the bundle takes everything with it. Set `BEETSDIR` to
+  override, or give absolute paths in the config; on read-only media it falls
+  back to beets' normal locations. Every CI build verifies that starting the
+  bundle leaves the OS config directory untouched.
+- **The shipped defaults are actually used now.** They were only copied in as a
+  `config.example.yaml` for the user to merge by hand, which meant the bundled
+  plugins were *not* enabled out of the box. They are now seeded into
+  `beets-data/config.yaml` on first run (and never overwritten afterwards), so a
+  fresh bundle starts with all 13 bundled plugins active.
 - Update to **beets 2.13.0** (all 13 bundled plugins verified). No plugin updates
   were needed — beets-filetote 1.3.6, beets-vgmdb 1.3.5 and beetcamp 0.24.3 all
   work unchanged on 2.13.
