@@ -140,7 +140,7 @@ have to install separately:
 Bundled and enabled by default: `chroma` (acoustic fingerprinting),
 `convert` (transcoding), `replaygain` (loudness normalization), `fetchart`,
 `lyrics`, `lastgenre`, `duplicates`, `info`, `missing`, `scrub`,
-`spotify` (Spotify as a metadata source).
+plus the metadata sources `deezer` and `spotify`.
 
 **Bundled but off by default:** `discogs` (Discogs as a metadata source). Its
 dependency ships in the bundle, but it authenticates the moment it loads — with
@@ -154,9 +154,27 @@ discogs:
   user_token: YOUR_TOKEN_HERE
 ```
 
-Any other built-in beets plugin can still be enabled in your config — these are
-just the ones active out of the box. (Plugins needing extra native libraries
-may require additional bundling work; open an issue if one you need is missing.)
+**Everything else beets ships is bundled too** — the optional dependencies for
+*all* of beets' plugin extras are included, so any built-in plugin can be turned
+on by just adding it to the `plugins` list in your config. That covers e.g.
+`web`/`aura` (HTTP interfaces), `beatport`, `tidal`, `mpdstats`, `sonosupdate`,
+`titlecase`, `thumbnails` and `bpd` (MPD-compatible playback server, via the
+bundled GStreamer). Importing straight from archives works too — `.zip` and
+`.tar` via the standard library, `.rar` via the bundled `rarfile`.
+
+Three exceptions could not be bundled:
+
+| Plugin | Why |
+|--------|-----|
+| `autobpm` | Needs `librosa`/`numba`; numba and llvmlite publish no x86_64 macOS wheels, which would break the universal2 build. |
+| `metasync` | Needs `dbus-python`, which only builds against native dbus development headers. |
+| `absubmit` | Needs an external AcousticBrainz extractor binary, which upstream no longer distributes. |
+
+Two more dependencies are deliberately skipped: `reflink` (its newest wheels are
+Windows/CPython 3.6 only, so every other platform would have to compile it via
+cffi) and `py7zr` for `.7z` import — beets' extractor calls `archive.infolist()`,
+which no py7zr release provides, so bundling it would only turn "unsupported
+format" into a crash, at the cost of ~10 MB of compression libraries.
 
 ### Helper binaries
 

@@ -36,6 +36,24 @@ dependencies = [
     # discogs plugin: Discogs as an autotagger metadata source. This is what
     # beets' own `discogs` extra installs; the spotify plugin needs only requests.
     "python3-discogs-client",
+    # The remaining beets extras, so every plugin beets ships is usable out of
+    # the bundle. (Only two of beets' extras are missing, and neither can be
+    # bundled: `autobpm` needs numba/llvmlite, which publish no x86_64 macOS
+    # wheels and would break the universal2 build, and `metasync` needs
+    # dbus-python, which requires native dbus headers to build. `reflink` is
+    # also left out: its newest wheels are cp36-Windows-only, so every other
+    # platform would have to compile it through cffi. `py7zr` is skipped as
+    # well: beets' extractor calls archive.infolist(), which NO py7zr release
+    # provides, so .7z import raises instead of working — and py7zr alone drags
+    # in ~10 MB of compression libraries.)
+    "requests-oauthlib",  # beatport, tidal
+    "titlecase",          # titlecase
+    "python-mpd2",        # mpdstats
+    "soco",               # sonosupdate
+    "rarfile",            # importing music straight out of .rar archives
+    "flask",              # web, aura
+    "flask-cors",         # web, aura
+    "pyxdg",              # thumbnails
     # extra bundled plugins (native, batteries-included)
     "beetcamp",          # Bandcamp metadata source -> beetsplug.bandcamp
     "beets-filetote",    # copy/move non-music files on import -> beetsplug.filetote
@@ -77,6 +95,7 @@ bundled-plugins = [
     "info",
     "missing",
     "scrub",
+    "deezer",        # Deezer as an autotagger metadata source
     "discogs",       # Discogs as an autotagger metadata source
     "spotify",       # Spotify as an autotagger metadata source
     "bandcamp",

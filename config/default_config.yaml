@@ -33,6 +33,7 @@ plugins:
   - info
   - missing
   - scrub
+  - deezer       # Deezer as an autotagger metadata source
   - spotify      # Spotify as an autotagger metadata source
   - bandcamp     # Bandcamp as an autotagger metadata source (beetcamp)
   - filetote     # carry along non-music files (artwork, logs, …) on import

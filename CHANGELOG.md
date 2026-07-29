@@ -14,12 +14,24 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
-- Bundle the **discogs** and **spotify** metadata source plugins, including
-  discogs' `python3-discogs-client` dependency. `spotify` is enabled by default;
-  `discogs` ships but stays off, because it authenticates as soon as it loads and
-  would otherwise start an interactive OAuth login on every beets command — add a
-  `user_token` to your config and enable it there. Both store their tokens inside
-  the bundle's `beets-data/`, like the rest of beets' state.
+- **Every beets plugin is now usable from the bundle.** The optional
+  dependencies behind all of beets' plugin extras are included, so any built-in
+  plugin can be enabled by simply listing it in the config — `web`/`aura`,
+  `beatport`, `tidal`, `mpdstats`, `sonosupdate`, `titlecase`, `thumbnails`,
+  `bpd` (playback via the bundled GStreamer) and more. Importing straight from
+  `.rar` archives works too (`.zip`/`.tar` already did).
+  Three plugins could not be bundled: `autobpm` (numba/llvmlite publish no
+  x86_64 macOS wheels and would break the universal2 build), `metasync`
+  (`dbus-python` needs native dbus headers) and `absubmit` (needs an external
+  extractor binary upstream no longer ships). `.7z` import is also left out:
+  beets calls an API (`archive.infolist()`) that no py7zr release provides, so
+  it would crash rather than work.
+- Enable the **deezer** and **spotify** metadata sources by default, and bundle
+  **discogs** as well. `discogs` ships but stays off: it authenticates as soon as
+  it loads, so without a token it would start an interactive OAuth login on every
+  beets command — add a `user_token` to your config and enable it there. The same
+  applies to `tidal`. All of them store their tokens inside the bundle's
+  `beets-data/`, like the rest of beets' state.
 
 ## 2.13.0-2
 
