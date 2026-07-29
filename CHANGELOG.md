@@ -14,6 +14,8 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+## 2.13.0-2
+
 - **The bundle is now portable.** beets used to keep its configuration, database
   and database backups in the OS config directory (`%APPDATA%\beets` on Windows,
   `~/.config/beets` elsewhere), so the program was portable but its state was
