@@ -33,6 +33,7 @@ plugins:
   - info
   - missing
   - scrub
+  - spotify      # Spotify as an autotagger metadata source
   - bandcamp     # Bandcamp as an autotagger metadata source (beetcamp)
   - filetote     # carry along non-music files (artwork, logs, …) on import
   - VGMplug      # VGMdb as an autotagger metadata source (beets-vgmdb)
@@ -44,3 +45,11 @@ replaygain:
 # convert: rely on the bundled ffmpeg on PATH (runtime_env wires this up).
 convert:
   ffmpeg: ffmpeg
+
+# The `discogs` plugin is bundled but NOT enabled above, because it authenticates
+# as soon as it loads: without a token it starts an interactive OAuth login on
+# every single beets command. Get a personal token at
+# https://www.discogs.com/settings/developers , then add `discogs` to the plugins
+# list above and put the token here:
+# discogs:
+#   user_token: YOUR_TOKEN_HERE

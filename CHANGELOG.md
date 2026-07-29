@@ -14,6 +14,13 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- Bundle the **discogs** and **spotify** metadata source plugins, including
+  discogs' `python3-discogs-client` dependency. `spotify` is enabled by default;
+  `discogs` ships but stays off, because it authenticates as soon as it loads and
+  would otherwise start an interactive OAuth login on every beets command — add a
+  `user_token` to your config and enable it there. Both store their tokens inside
+  the bundle's `beets-data/`, like the rest of beets' state.
+
 ## 2.13.0-2
 
 - **The bundle is now portable.** beets used to keep its configuration, database

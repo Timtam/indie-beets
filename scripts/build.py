@@ -34,6 +34,7 @@ PLUGIN_RUNTIME_DEPS: dict[str, list[str]] = {
     "chroma": ["acoustid"],
     "lyrics": ["bs4"],
     "VGMplug": ["lxml", "bs4"],  # beets-vgmdb: BeautifulSoup(..., "lxml")
+    "discogs": ["discogs_client"],  # from the python3-discogs-client package
 }
 
 # Modules we deliberately keep Nuitka from following into:

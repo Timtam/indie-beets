@@ -139,7 +139,20 @@ have to install separately:
 
 Bundled and enabled by default: `chroma` (acoustic fingerprinting),
 `convert` (transcoding), `replaygain` (loudness normalization), `fetchart`,
-`lyrics`, `lastgenre`, `duplicates`, `info`, `missing`, `scrub`.
+`lyrics`, `lastgenre`, `duplicates`, `info`, `missing`, `scrub`,
+`spotify` (Spotify as a metadata source).
+
+**Bundled but off by default:** `discogs` (Discogs as a metadata source). Its
+dependency ships in the bundle, but it authenticates the moment it loads — with
+no token that means an interactive OAuth login on *every* beets command, so
+enabling it out of the box would break normal use. To turn it on, get a personal
+token from [Discogs](https://www.discogs.com/settings/developers), then add
+`discogs` to the `plugins` list in your config and set it:
+
+```yaml
+discogs:
+  user_token: YOUR_TOKEN_HERE
+```
 
 Any other built-in beets plugin can still be enabled in your config — these are
 just the ones active out of the box. (Plugins needing extra native libraries
