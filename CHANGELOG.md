@@ -14,6 +14,8 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+## 2.13.0-3
+
 - **Every beets plugin is now usable from the bundle.** The optional
   dependencies behind all of beets' plugin extras are included, so any built-in
   plugin can be enabled by simply listing it in the config — `web`/`aura`,
