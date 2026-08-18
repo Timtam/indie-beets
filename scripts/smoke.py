@@ -64,11 +64,18 @@ def main() -> int:
         )
         env = {**os.environ, "BEETSDIR": str(work)}
 
+        problems: list[str] = []
+
         def run(*cli: str) -> str:
             r = subprocess.run([str(beet), *cli], env=env, text=True,
                                capture_output=True)
             sys.stdout.write(r.stdout)
             sys.stderr.write(r.stderr)
+            # A plugin that fails to load still lets beets exit 0, and the
+            # backend then silently does nothing — which used to look like a
+            # pass. Treat it as the failure it is.
+            if "error loading plugin" in (r.stdout + r.stderr):
+                problems.append(f"a plugin failed to load during `beet {cli[0]}`")
             return r.stdout
 
         run("version")
@@ -78,8 +85,19 @@ def main() -> int:
 
     gains = [tok for tok in out.split() if tok.replace("-", "").replace(".", "").isdigit()]
     if not gains:
-        print(f"SMOKE FAILED: no ReplayGain computed via {args.backend} backend",
-              file=sys.stderr)
+        problems.append(f"no ReplayGain computed via the {args.backend} backend")
+    elif float(gains[0]) == 0.0:
+        # beets reports 0.0 for a track it never analysed, and 15 s of pink noise
+        # never genuinely measures 0.0 (the other backends land around -2 dB).
+        # Without this check a completely broken backend reads as a pass.
+        problems.append(
+            f"the {args.backend} backend reported rg_track_gain=0.0, which means "
+            f"it did not analyse the file"
+        )
+
+    if problems:
+        for p in problems:
+            print(f"SMOKE FAILED: {p}", file=sys.stderr)
         return 1
     print(f"SMOKE OK: {args.backend} backend computed rg_track_gain={gains[0]}")
     return 0

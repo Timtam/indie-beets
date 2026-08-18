@@ -159,6 +159,13 @@ def setup() -> None:
             # are loaded by GModule, which does use PATH.)
             if sys.platform == "win32" and hasattr(os, "add_dll_directory"):
                 os.add_dll_directory(str(gst_bin))
+                # gi itself also insists on locating a DLL directory before it
+                # will import, and it guesses one by walking three levels up
+                # from the gi package — which assumes a Lib/site-packages/gi
+                # layout. In the frozen bundle gi sits at the top level, so that
+                # guess lands outside the bundle and gi raises "Could not deduce
+                # DLL directories". PYGI_DLL_DIRS is its documented override.
+                os.environ["PYGI_DLL_DIRS"] = str(gst_bin)
         # Shared libraries the plugins link against. On Linux the gst/glib core
         # libs live in the bundle root (Nuitka pulled them in via gi), and the
         # dlopen'd plugins must resolve against them, so put the root on the path.

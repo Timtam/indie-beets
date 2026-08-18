@@ -14,6 +14,19 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Fix the `gstreamer` ReplayGain backend on Windows.** It never actually ran in
+  release builds: the bundled `gi` derives its DLL directory by assuming a
+  `Lib/site-packages/gi` layout and walking three levels up, which lands outside
+  the frozen bundle, so importing it failed with "Could not deduce DLL
+  directories" and the plugin silently did not load. The bundle now sets
+  `PYGI_DLL_DIRS`, gi's documented override, to its own GStreamer `bin`. This
+  fixes the `bpd` plugin too, which loads gi the same way.
+- **Stop the smoke tests from passing on a broken backend.** The failure above
+  went unnoticed for several releases because beets still exited 0 and reported
+  `rg_track_gain=0.0`, which the test accepted as a number. The smokes now fail
+  if any plugin fails to load, or if the computed gain is 0.0 — which means the
+  file was never analysed.
+
 ## 2.13.0-3
 
 - **Every beets plugin is now usable from the bundle.** The optional
