@@ -93,7 +93,7 @@ quietly falls back to beets' normal locations instead of failing.
 
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
-| **beets**        | **2.13.0** (the release number tracks this)   |
+| **beets**        | **2.13.1** (the release number tracks this)   |
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
@@ -123,7 +123,8 @@ suffixed `-dev` since they aren't numbered releases.
 
 ## Bundled plugins
 
-All of these are enabled in the shipped `config.example.yaml` and ready to use.
+These are active in the config the bundle writes to `beets-data/config.yaml` on
+first run, so they work immediately.
 
 ### External / third-party plugins
 
@@ -134,6 +135,7 @@ have to install separately:
 |--------|---------|--------------|
 | **bandcamp** | [`beetcamp`](https://github.com/snejus/beetcamp) | Adds Bandcamp as an autotagger metadata source. |
 | **filetote** | [`beets-filetote`](https://github.com/gtronset/beets-filetote) | Copies/moves non-music files (artwork, logs, cue sheets…) alongside your music on import. |
+| **VGMplug** | [`beets-vgmdb`](https://github.com/hsaito/beets-vgmdb) | Adds VGMdb as an autotagger metadata source (game/anime soundtracks). |
 
 ### Built-in beets plugins
 
@@ -162,13 +164,18 @@ on by just adding it to the `plugins` list in your config. That covers e.g.
 bundled GStreamer). Importing straight from archives works too — `.zip` and
 `.tar` via the standard library, `.rar` via the bundled `rarfile`.
 
-Three exceptions could not be bundled:
+Two plugins genuinely cannot be bundled:
 
 | Plugin | Why |
 |--------|-----|
-| `autobpm` | Needs `librosa`/`numba`; numba and llvmlite publish no x86_64 macOS wheels, which would break the universal2 build. |
-| `metasync` | Needs `dbus-python`, which only builds against native dbus development headers. |
-| `absubmit` | Needs an external AcousticBrainz extractor binary, which upstream no longer distributes. |
+| `autobpm` | Needs `librosa`/`numba`. numba and llvmlite dropped their x86_64 macOS wheels, which alone would break the universal2 build — but the decisive problem is that Nuitka does not support numba in standalone builds and disables its JIT, so the plugin would be broken on *every* platform, not just macOS. |
+| `absubmit` | Submits analysis data to AcousticBrainz, which **stopped accepting submissions in 2022**. beets itself refuses to run it against the public service, so bundling the extractor binary would enable nothing. It also raises on load when the binary is absent — never put it in your plugin list. |
+
+Note that `metasync` *is* available (it was previously listed here by mistake): it
+needs no extra dependency. Its iTunes source works everywhere; only its Amarok
+source talks to D-Bus, and it degrades gracefully when that is unavailable. The
+read-only `acousticbrainz` plugin also still works — the shutdown only killed
+*submissions*, not the existing data API. beets marks both as deprecated.
 
 Two more dependencies are deliberately skipped: `reflink` (its newest wheels are
 Windows/CPython 3.6 only, so every other platform would have to compile it via

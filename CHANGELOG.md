@@ -14,6 +14,34 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Update to beets 2.13.1 and beets-filetote 1.3.7 — this fixes a broken plugin
+  in the 2.13.0-x releases.** beets 2.13.0 changed two things filetote 1.3.6 relies
+  on (`DefaultTemplateFunctions` lost its default arguments, and
+  `MULTIDISC_PATTERNS` became `str` instead of `bytes`), so importing anything with
+  filetote enabled crashed part-way through. The plugin still *loaded*, which is
+  why our checks missed it — they only verified that plugins load, not that they
+  work. filetote 1.3.7 is the fix, and the two versions now move together.
+- Correct the plugin availability documentation. `metasync` was listed as
+  impossible to bundle, but it needs no extra dependency at all — its iTunes
+  source works everywhere and its Amarok source degrades gracefully without
+  D-Bus, so it has in fact been usable all along. `absubmit` remains excluded,
+  now for the real reason: AcousticBrainz stopped accepting submissions in 2022
+  and beets refuses to run it against the public service. `autobpm` also remains
+  excluded, and the deciding factor is not the macOS wheels but that Nuitka does
+  not support numba in standalone builds at all.
+- **Fix the `lyrics` plugin's language detection.** `langdetect` keeps its 55
+  language profiles and `messages.properties` as package data, and Nuitka was not
+  bundling them, so the plugin raised `FileNotFoundError` as soon as it inspected
+  a lyric. Like the filetote break, it imported fine and only failed in use.
+- Add a check that *exercises* the default plugins instead of only loading them
+  (`scripts/verify_plugins.py`, run on every platform in CI): it imports a real
+  track with an artifact file alongside it and fails on any traceback. Both bugs
+  above were invisible to a load-only check — this is what found the langdetect one.
+- Pin the bundled third-party plugins (`beetcamp`, `beets-filetote`, `beets-vgmdb`)
+  and `httpx2` explicitly. Windows and Linux install from `pyproject.toml` while
+  macOS installs the frozen closure, so anything left unpinned could ship at
+  different versions on different platforms from the very same commit.
+
 - **Fix the `gstreamer` ReplayGain backend on Windows.** It never actually ran in
   release builds: the bundled `gi` derives its DLL directory by assuming a
   `Lib/site-packages/gi` layout and walking three levels up, which lands outside

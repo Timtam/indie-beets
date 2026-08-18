@@ -80,6 +80,8 @@ jobs:
             '
       - name: Verify portable state (no writes outside the bundle)
         run: .venv/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
+      - name: Verify the default plugins actually work (not just load)
+        run: .venv/bin/python scripts/verify_plugins.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -141,6 +143,8 @@ jobs:
             '
       - name: Verify portable state (no writes outside the bundle)
         run: .venv/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
+      - name: Verify the default plugins actually work (not just load)
+        run: .venv/bin/python scripts/verify_plugins.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -188,6 +192,8 @@ jobs:
         run: .venv\Scripts\python scripts/smoke.py --dist build/indie_beets.dist --backend metaflac
       - name: Verify portable state (no writes outside the bundle)
         run: .venv\Scripts\python scripts/verify_portable.py --dist build/indie_beets.dist
+      - name: Verify the default plugins actually work (not just load)
+        run: .venv\Scripts\python scripts/verify_plugins.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:
@@ -289,6 +295,8 @@ jobs:
 
       - name: Verify portable state (no writes outside the bundle)
         run: .venv-arm64/bin/python scripts/verify_portable.py --dist build/indie_beets.dist
+      - name: Verify the default plugins actually work (not just load)
+        run: .venv-arm64/bin/python scripts/verify_plugins.py --dist build/indie_beets.dist
       - name: Upload bundle
         uses: actions/upload-artifact@v4
         with:

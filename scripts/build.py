@@ -108,6 +108,11 @@ def build_command(args: argparse.Namespace, plugins: list[str]) -> list[str]:
         "--include-package-data=beets",
         "--include-package-data=beetsplug",  # plugin data files, e.g. lastgenre/genres.txt
         "--include-package-data=confuse",
+        # langdetect ships 55 language profiles plus messages.properties as
+        # package data. Without them the lyrics plugin dies with
+        # FileNotFoundError on messages.properties the moment it tries to detect
+        # a language — it imports fine, so only an end-to-end run catches it.
+        "--include-package-data=langdetect",
         # requests imports its charset detector lazily, so Nuitka's analysis
         # drops it and requests falls back to no encoding detection. Force it in
         # (needed by fetchart/lyrics and any network plugin handling text).
