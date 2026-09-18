@@ -8,6 +8,12 @@ So this runs a real import through the shipped defaults, with an artifact file
 present, and fails on any traceback. It is deliberately end-to-end: the frozen
 executable, its own seeded config, a real audio file, real files on disk.
 
+A quiet `import -q` never reaches the interactive prompt, and that is where
+beets 2.14 broke twice without any load check noticing: beets 2.14.0 threw away
+the result of its own "enter Id" choice (beets#7000), and VGMplug's prompt
+choices crashed the whole import. So it also answers the prompt like a user
+would, with a stand-in plugin that serves those lookups offline.
+
 Usage:
     python scripts/verify_plugins.py --dist build/indie_beets.dist
 """
@@ -33,6 +39,90 @@ ERROR_MARKERS = (
     "error loading plugin",
     "** error",
 )
+
+#: Serves the import prompt's manual lookups offline. It is loaded from
+#: `pluginpath` as a plain .py file, next to the real, compiled VGMplug.
+PROBE_PLUGIN = '''\
+from beets.autotag.hooks import AlbumInfo, TrackInfo
+from beets.metadata_plugins import MetadataSourcePlugin
+from beetsplug import VGMplug
+
+
+def _album(name, album_id, source):
+    track = TrackInfo(title="Verify", artist="indie-beets", index=1, length=5.0,
+                      track_id=f"{album_id}-1", data_source=source)
+    return AlbumInfo(tracks=[track], album=name, artist="indie-beets",
+                     album_id=album_id, data_source=source)
+
+
+# VGMplug's own prompt choices ask vgmdb.info; answer them here instead.
+VGMplug.VGMdbPlugin.album_for_id = lambda self, album_id: (
+    _album("Probe vgmdb-id", "vgm-1", "VGMdb") if album_id == "vgm-1" else None
+)
+VGMplug.VGMdbPlugin._search_vgmdbinfo = lambda self, query: [
+    _album("Probe vgmdb-query", "vgm-2", "VGMdb")
+]
+
+
+class Probe(MetadataSourcePlugin):
+    """The metadata source behind beets' own "enter Id" choice."""
+
+    def album_for_id(self, album_id):
+        return _album("Probe enter-id", "probe-1", "Probe") if album_id == "probe-1" else None
+
+    def track_for_id(self, track_id):
+        return None
+
+    def candidates(self, items, artist, album, va_likely):
+        return []
+
+    def item_candidates(self, item, artist, title):
+        return []
+'''
+
+#: What a user types at the import prompt, and the album that must come of it.
+PROMPT_RUNS = (
+    ("i\nprobe-1\na\n", "Probe enter-id"),         # beets: enter Id
+    ("v\nvgm-1\na\n", "Probe vgmdb-id"),           # VGMplug: type Vgmdb id
+    ("q\nsome query\na\n", "Probe vgmdb-query"),   # VGMplug: type vgmdb Query
+)
+
+
+def check_import_prompt(beet: Path, work: Path, track: Path) -> list[str]:
+    """Import through the interactive prompt's manual lookups."""
+    home = work / "prompt"
+    (home / "plugins").mkdir(parents=True)
+    (home / "plugins" / "indie_probe.py").write_text(PROBE_PLUGIN, encoding="utf-8")
+    (home / "config.yaml").write_text(
+        f"directory: {home.as_posix()}/lib\n"
+        f"library: {home.as_posix()}/lib.db\n"
+        f"pluginpath: [{(home / 'plugins').as_posix()}]\n"
+        "plugins: [VGMplug, indie_probe]\n"
+        "ui:\n  color: no\n",
+        encoding="utf-8",
+    )
+    env = {**os.environ, "BEETSDIR": str(home)}
+
+    def beet_run(*cli: str, answers: str | None = None) -> str:
+        r = subprocess.run([str(beet), *cli], input=answers, env=env, text=True,
+                           errors="replace", capture_output=True, timeout=300)
+        sys.stdout.write(r.stdout)
+        sys.stderr.write(r.stderr)
+        return r.stdout + r.stderr
+
+    output = []
+    for answers, album in PROMPT_RUNS:
+        src = home / "in" / album
+        src.mkdir(parents=True)
+        shutil.copy(track, src)
+        output.append(beet_run("import", str(src), answers=answers))
+    listing = beet_run("list", "-a", "-f", "$album")
+
+    problems = [f"import prompt: {m}" for m in ERROR_MARKERS if m in "\n".join(output)]
+    for answers, album in PROMPT_RUNS:
+        if album not in listing:
+            problems.append(f"import prompt: answering {answers!r} did not import {album!r}")
+    return problems
 
 
 def main() -> int:
@@ -87,6 +177,8 @@ def main() -> int:
         if not list((work / "lib").rglob("*.jpg")):
             problems.append("filetote did not copy the artifact alongside the music")
 
+        problems += check_import_prompt(beet, work, music / "track.mp3")
+
         # Copy nothing out of the temp dir; it disappears with the context.
         shutil.rmtree(work / "lib", ignore_errors=True)
 
@@ -94,7 +186,8 @@ def main() -> int:
         for p in problems:
             print(f"PLUGIN CHECK FAILED: {p}", file=sys.stderr)
         return 1
-    print("PLUGINS OK: default set imported a track and carried its artifact")
+    print("PLUGINS OK: default set imported a track and carried its artifact; "
+          "the import prompt's manual lookups work")
     return 0
 
 

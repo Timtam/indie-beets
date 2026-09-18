@@ -15,6 +15,7 @@ single source of truth.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import os
 import subprocess
@@ -50,6 +51,50 @@ PLUGIN_RUNTIME_DEPS: dict[str, list[str]] = {
 # If a future beets version starts importing numba/scipy, the smoke test catches it.
 UNUSED_HEAVY_DEPS = ["numba", "llvmlite", "scipy", "tkinter"]
 
+# Fixes for third-party plugins, applied to their installed source before Nuitka
+# compiles it. Each one is pinned to the exact upstream file it was written for:
+# when a plugin release changes that file, the build stops instead of shipping
+# it unpatched or patching it blindly. Re-check the plugin then, and drop the
+# patch once upstream has fixed it.
+VENDOR_PATCHES = [
+    {
+        # beets-vgmdb 1.3.5. beets 2.14 (beets#6681) made the first argument of
+        # beets.autotag.match._add_candidate() a Source instead of the items, so
+        # VGMplug's import-prompt choices ("v": VGMdb id, "q": VGMdb query) crash
+        # the whole import with AttributeError. The fix is feature-detected, so
+        # the patched file behaves exactly as before on beets < 2.14.
+        "module": "beetsplug.VGMplug",
+        "upstream_sha256": "9acebcd43dbb848a8182ad045e0439aead24ad19ef156cb0f23902a96a3b833d",
+        "patched_sha256": "59237298a74e782d1d039289efebe360cf7170bc6612e67dab2835ad27cf0cea",
+        "edits": [
+            (
+                "from beets.util import PromptChoice\n\n",
+                "from beets.util import PromptChoice\n"
+                "\n"
+                "try:  # beets >= 2.14 (beets#6681): _add_candidate() takes a Source, not items\n"
+                "    from beets.autotag import Source\n"
+                "except ImportError:  # beets < 2.14\n"
+                "    Source = None\n"
+                "\n"
+                "\n"
+                "def _match_source(items):\n"
+                '    """First argument for _add_candidate() on this beets version."""\n'
+                "    return Source.from_items(items) if Source is not None else items\n"
+                "\n"
+                "\n",
+            ),
+            (
+                "_add_candidate(task.items, candidates, custom_album)",
+                "_add_candidate(_match_source(task.items), candidates, custom_album)",
+            ),
+            (
+                "task.items, candidates, query_results[0]",
+                "_match_source(task.items), candidates, query_results[0]",
+            ),
+        ],
+    },
+]
+
 
 def find_vcvars() -> Path | None:
     """Locate vcvars64.bat for the latest VS with the C++ toolchain.
@@ -77,6 +122,39 @@ def find_vcvars() -> Path | None:
         return None
     vcvars = Path(install_path) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
     return vcvars if vcvars.exists() else None
+
+
+def apply_vendor_patches() -> None:
+    """Patch the installed third-party plugins in VENDOR_PATCHES (idempotent)."""
+    for patch in VENDOR_PATCHES:
+        spec = importlib.util.find_spec(patch["module"])
+        if spec is None or not spec.origin:
+            raise SystemExit(f"build: {patch['module']} is not installed, cannot patch it")
+        path = Path(spec.origin)
+        data = path.read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        if digest == patch["patched_sha256"]:
+            print(f"Vendor patch for {patch['module']}: already applied")
+            continue
+        if digest != patch["upstream_sha256"]:
+            raise SystemExit(
+                f"build: {path} is not the file its vendor patch was written for "
+                f"(sha256 {digest}). The plugin changed: check whether it still "
+                "needs the patch, then update or remove it in VENDOR_PATCHES."
+            )
+        text = data.decode("utf-8")
+        for old, new in patch["edits"]:
+            text = text.replace(old, new)
+        patched = text.encode("utf-8")
+        if hashlib.sha256(patched).hexdigest() != patch["patched_sha256"]:
+            raise SystemExit(f"build: patching {path} did not give the expected file")
+        # Swap in a new file rather than rewriting this one: uv hardlinks
+        # installed files to its cache, so an in-place write would patch the
+        # cache, and with it every other environment that uses that file.
+        staged = path.with_name(path.name + ".indie-beets-patch")
+        staged.write_bytes(patched)
+        os.replace(staged, path)
+        print(f"Vendor patch for {patch['module']}: applied to {path}")
 
 
 def read_bundled_plugins() -> list[str]:
@@ -173,6 +251,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    apply_vendor_patches()
     plugins = read_bundled_plugins()
     cmd = build_command(args, plugins)
 

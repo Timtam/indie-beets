@@ -14,6 +14,19 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Update to beets 2.14.1.** beets 2.14.0 was skipped on purpose. Its import
+  prompt threw away the results of "enter Id" and "Enter search" (beets#7000,
+  fixed in 2.14.1), so looking a release up by hand did nothing. beets 2.14 also
+  changed an internal function that `beets-vgmdb` 1.3.5 calls, so VGMplug's own
+  prompt choices, which look up a VGMdb id or run a VGMdb query, crashed the whole
+  import. No beets-vgmdb release fixes that yet, so the build now patches VGMplug.
+  The patch is pinned to that exact beets-vgmdb release, so a new release stops
+  the build until someone has checked it. Also new in beets 2.14: `beatport` logs
+  in as soon as it loads, like `discogs` (see the README).
+- The plugin check now also answers the interactive import prompt the way a user
+  would (beets' "enter Id", and VGMplug's id and query choices), using an offline
+  stand-in for the lookups. Both beets 2.14 breaks happened there, and the quiet
+  `import -q` the check used before never reaches that prompt.
 - **Turn MusicBrainz back on.** beets enables its `musicbrainz` plugin by
   default, but the `plugins` list in our shipped config *replaces* beets' default
   list, and it left `musicbrainz` out. Since 2.13.0-2 the bundle writes that
@@ -24,8 +37,8 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   `beets-data/config.yaml` yourself: indie-beets never changes your config once
   it has created it. `verify_portable.py` now fails the build if MusicBrainz does
   not load from the shipped config.
-- **Update to beets 2.13.1 and beets-filetote 1.3.7 — this fixes a broken plugin
-  in the 2.13.0-x releases.** beets 2.13.0 changed two things filetote 1.3.6 relies
+- **Update beets-filetote to 1.3.7 — this fixes a broken plugin in the 2.13.0-x
+  releases.** beets 2.13.0 changed two things filetote 1.3.6 relies
   on (`DefaultTemplateFunctions` lost its default arguments, and
   `MULTIDISC_PATTERNS` became `str` instead of `bytes`), so importing anything with
   filetote enabled crashed part-way through. The plugin still *loaded*, which is

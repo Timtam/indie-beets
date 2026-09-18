@@ -93,7 +93,7 @@ quietly falls back to beets' normal locations instead of failing.
 
 | Component        | Version / target                              |
 |------------------|-----------------------------------------------|
-| **beets**        | **2.13.1** (the release number tracks this)   |
+| **beets**        | **2.14.1** (the release number tracks this)   |
 | Python (build)   | 3.13 on Windows, 3.12 on Linux/macOS          |
 | ffmpeg           | `n8.1` static (Windows/Linux, BtbN) · `6.1.1` static (macOS, ffmpeg-static) |
 | fpcalc / Chromaprint | 1.6.0                                     |
@@ -135,7 +135,7 @@ have to install separately:
 |--------|---------|--------------|
 | **bandcamp** | [`beetcamp`](https://github.com/snejus/beetcamp) | Adds Bandcamp as an autotagger metadata source. |
 | **filetote** | [`beets-filetote`](https://github.com/gtronset/beets-filetote) | Copies/moves non-music files (artwork, logs, cue sheets…) alongside your music on import. |
-| **VGMplug** | [`beets-vgmdb`](https://github.com/hsaito/beets-vgmdb) | Adds VGMdb as an autotagger metadata source (game/anime soundtracks). |
+| **VGMplug** | [`beets-vgmdb`](https://github.com/hsaito/beets-vgmdb) | Adds VGMdb as an autotagger metadata source (game/anime soundtracks). Its import-prompt choices (look up a VGMdb id or query) need a small compatibility patch for beets 2.14, which the bundle applies at build time. |
 
 ### Built-in beets plugins
 
@@ -157,10 +157,15 @@ discogs:
   user_token: YOUR_TOKEN_HERE
 ```
 
+`beatport` behaves the same way since beets 2.14: it logs in to Beatport as soon
+as it loads, so it only belongs in your plugin list once that login has
+succeeded. Until then it slows down or interrupts every beets command. beets
+itself has also marked the plugin as deprecated.
+
 **Everything else beets ships is bundled too** — the optional dependencies for
 *all* of beets' plugin extras are included, so any built-in plugin can be turned
 on by just adding it to the `plugins` list in your config. That covers e.g.
-`web`/`aura` (HTTP interfaces), `beatport`, `tidal`, `mpdstats`, `sonosupdate`,
+`web`/`aura` (HTTP interfaces), `tidal`, `mpdstats`, `sonosupdate`,
 `titlecase`, `thumbnails` and `bpd` (MPD-compatible playback server, via the
 bundled GStreamer). Importing straight from archives works too — `.zip` and
 `.tar` via the standard library, `.rar` via the bundled `rarfile`.
@@ -281,7 +286,7 @@ workflow*) always build all platforms.
 - [ ] Native Windows arm64 build — blocked: Nuitka has no Windows-arm64 standalone
       support (x64 build runs on Windows-on-ARM via emulation meanwhile)
 - [ ] Code signing / notarization (macOS, Windows)
-- [x] Track latest beets (now 2.13.0, with beets-filetote 1.3.6)
+- [x] Track latest beets (now 2.14.1, with beets-filetote 1.3.7)
 - [x] Bundled `metaflac`, so beets 2.13's FLAC ReplayGain backend works out of the box
 
 ---
