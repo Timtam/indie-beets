@@ -14,6 +14,14 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Bandcamp search works again (beetcamp 0.25.0).** Bandcamp now answers the
+  search page that beetcamp 0.24.3 read with a bot check, so automatic Bandcamp
+  search quietly found nothing; only lookups by Bandcamp URL still worked.
+  0.25.0 uses Bandcamp's search API instead. It also left a debug line behind
+  that wrote every search response to `response.json` in the directory beets was
+  started from, and made the search fail where that directory is not writable.
+  The build removes that line.
+- Update httpx2, the HTTP library behind `lastgenre`, to 2.13.0.
 - **Update to beets 2.14.1.** beets 2.14.0 was skipped on purpose. Its import
   prompt threw away the results of "enter Id" and "Enter search" (beets#7000,
   fixed in 2.14.1), so looking a release up by hand did nothing. beets 2.14 also
@@ -21,8 +29,9 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
   prompt choices, which look up a VGMdb id or run a VGMdb query, crashed the whole
   import. No beets-vgmdb release fixes that yet, so the build now patches VGMplug.
   The patch is pinned to that exact beets-vgmdb release, so a new release stops
-  the build until someone has checked it. Also new in beets 2.14: `beatport` logs
-  in as soon as it loads, like `discogs` (see the README).
+  the build until someone has checked it. `beatport` and `bpsync` stay off:
+  Beatport retired the API they use, so they cannot work, and since beets 2.14
+  either one adds about 20 seconds to every beets command (see the README).
 - The plugin check now also answers the interactive import prompt the way a user
   would (beets' "enter Id", and VGMplug's id and query choices), using an offline
   stand-in for the lookups. Both beets 2.14 breaks happened there, and the quiet

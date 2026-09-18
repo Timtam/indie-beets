@@ -157,10 +157,11 @@ discogs:
   user_token: YOUR_TOKEN_HERE
 ```
 
-`beatport` behaves the same way since beets 2.14: it logs in to Beatport as soon
-as it loads, so it only belongs in your plugin list once that login has
-succeeded. Until then it slows down or interrupts every beets command. beets
-itself has also marked the plugin as deprecated.
+`beatport` and `bpsync` cannot work at all: Beatport retired the API they use,
+and beets has deprecated both (they are due to be removed in beets 3.0). Since
+beets 2.14, having either in your plugin list also adds about 20 seconds to
+every beets command on Windows, and possibly more on Linux and macOS, while the
+plugin tries to reach Beatport's retired login server. Leave them out.
 
 **Everything else beets ships is bundled too** — the optional dependencies for
 *all* of beets' plugin extras are included, so any built-in plugin can be turned

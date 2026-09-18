@@ -93,6 +93,22 @@ VENDOR_PATCHES = [
             ),
         ],
     },
+    {
+        # beetcamp 0.25.0 left a debug line in its new search: every Bandcamp
+        # search writes the raw API response to ./response.json, i.e. into
+        # whatever directory beets was started from, and fails with
+        # PermissionError where that directory is not writable. Only that line
+        # is removed; the imports it used stay.
+        "module": "beetcamp.json_search",
+        "upstream_sha256": "ab4f037d14e922fee8e7dffe1fbebd451bf0059b271fe3547e910aefb93c675f",
+        "patched_sha256": "a7640647ec6db80f074fa8545c7075e8bf4404f86cd97c4a8e605e14d6108dee",
+        "edits": [
+            (
+                '    Path("response.json").write_text(json.dumps(response, indent=2))\n',
+                "",
+            ),
+        ],
+    },
 ]
 
 
