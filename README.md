@@ -139,7 +139,8 @@ have to install separately:
 
 ### Built-in beets plugins
 
-Bundled and enabled by default: `chroma` (acoustic fingerprinting),
+Bundled and enabled by default: `musicbrainz` (beets' main metadata source for
+autotagging), `chroma` (acoustic fingerprinting),
 `convert` (transcoding), `replaygain` (loudness normalization), `fetchart`,
 `lyrics`, `lastgenre`, `duplicates`, `info`, `missing`, `scrub`,
 plus the metadata sources `deezer` and `spotify`.

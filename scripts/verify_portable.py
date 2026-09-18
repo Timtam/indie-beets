@@ -70,6 +70,11 @@ def main() -> int:
         problems.append("no plugins line in `beet version` output")
     elif "replaygain" not in proc.stdout:
         problems.append(f"bundled plugins not active: {proc.stdout.strip()!r}")
+    # Listing plugins in the seeded config REPLACES beets' own default list
+    # (`plugins: [musicbrainz]`), so forgetting musicbrainz there silently turns
+    # off beets' primary autotagger. Releases 2.13.0-2 and -3 shipped that way.
+    elif "musicbrainz" not in proc.stdout:
+        problems.append("musicbrainz is not loaded by the shipped default config")
 
     after = sorted(p.name for p in osdir.iterdir()) if osdir.is_dir() else None
     if before != after:

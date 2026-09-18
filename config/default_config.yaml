@@ -23,6 +23,9 @@
 
 # Plugins that ship with the bundle. The user can trim or extend this list.
 plugins:
+  - musicbrainz   # MusicBrainz: beets' primary autotagger source. beets enables it by
+                 # default, but listing plugins here replaces beets' default list, so it
+                 # must be named explicitly or autotagging silently loses MusicBrainz.
   - chroma        # acoustic fingerprinting (uses bundled fpcalc)
   - convert       # transcoding (uses bundled ffmpeg)
   - replaygain    # loudness normalization

@@ -14,6 +14,16 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Turn MusicBrainz back on.** beets enables its `musicbrainz` plugin by
+  default, but the `plugins` list in our shipped config *replaces* beets' default
+  list, and it left `musicbrainz` out. Since 2.13.0-2 the bundle writes that
+  config into `beets-data/` on first run, so fresh installs have been autotagging
+  without MusicBrainz, beets' main metadata source. New installs get it back.
+  **If you already use 2.13.0-2 or 2.13.0-3** (or copied the example config from
+  an earlier release), add `- musicbrainz` to the `plugins` list in
+  `beets-data/config.yaml` yourself: indie-beets never changes your config once
+  it has created it. `verify_portable.py` now fails the build if MusicBrainz does
+  not load from the shipped config.
 - **Update to beets 2.13.1 and beets-filetote 1.3.7 — this fixes a broken plugin
   in the 2.13.0-x releases.** beets 2.13.0 changed two things filetote 1.3.6 relies
   on (`DefaultTemplateFunctions` lost its default arguments, and
