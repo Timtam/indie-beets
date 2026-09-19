@@ -14,6 +14,9 @@ the result of its own "enter Id" choice (beets#7000), and VGMplug's prompt
 choices crashed the whole import. So it also answers the prompt like a user
 would, with a stand-in plugin that serves those lookups offline.
 
+Finally it loads and imports with the plugins that are bundled but off by
+default, which nothing else here would ever touch.
+
 Usage:
     python scripts/verify_plugins.py --dist build/indie_beets.dist
 """
@@ -125,6 +128,50 @@ def check_import_prompt(beet: Path, work: Path, track: Path) -> list[str]:
     return problems
 
 
+#: Bundled but left out of the shipped config. (discogs is not listed: it starts
+#: an interactive login as soon as it loads.)
+OFF_BY_DEFAULT = ("beatport4",)
+
+
+def check_off_by_default(beet: Path, work: Path, track: Path) -> list[str]:
+    """Load the plugins users can turn on themselves, and import with them.
+
+    beatport4 does its real work when an import starts: without a login it asks
+    for a token there, and Enter skips it (as the README tells users). That runs
+    its import-time code offline and without a Beatport account.
+    """
+    home = work / "off"
+    (home / "music").mkdir(parents=True)
+    shutil.copy(track, home / "music")
+    (home / "config.yaml").write_text(
+        f"directory: {home.as_posix()}/lib\n"
+        f"library: {home.as_posix()}/lib.db\n"
+        f"plugins: [{', '.join(OFF_BY_DEFAULT)}]\n",
+        encoding="utf-8",
+    )
+    env = {**os.environ, "BEETSDIR": str(home)}
+
+    def beet_run(*cli: str, answers: str | None = None) -> str:
+        r = subprocess.run([str(beet), *cli], input=answers, env=env, text=True,
+                           errors="replace", capture_output=True, timeout=300)
+        sys.stdout.write(r.stdout)
+        sys.stderr.write(r.stderr)
+        return r.stdout + r.stderr
+
+    version = beet_run("version")
+    imported = beet_run("import", "-A", "-q", str(home / "music"), answers="\n")
+    listing = beet_run("list", "-f", "$title")
+
+    problems = [f"off-by-default plugins: {m}" for m in ERROR_MARKERS if m in version + imported]
+    loaded = next((line for line in version.splitlines() if line.startswith("plugins:")), "")
+    problems += [f"off-by-default plugin {p} did not load" for p in OFF_BY_DEFAULT if p not in loaded]
+    if "Manual token entry failed" not in imported:
+        problems.append("beatport4 did not ask for a token at import, or Enter did not skip it")
+    if "Verify" not in listing:
+        problems.append("importing with the off-by-default plugins enabled did not import the track")
+    return problems
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dist", required=True)
@@ -178,6 +225,7 @@ def main() -> int:
             problems.append("filetote did not copy the artifact alongside the music")
 
         problems += check_import_prompt(beet, work, music / "track.mp3")
+        problems += check_off_by_default(beet, work, music / "track.mp3")
 
         # Copy nothing out of the temp dir; it disappears with the context.
         shutil.rmtree(work / "lib", ignore_errors=True)
@@ -187,7 +235,7 @@ def main() -> int:
             print(f"PLUGIN CHECK FAILED: {p}", file=sys.stderr)
         return 1
     print("PLUGINS OK: default set imported a track and carried its artifact; "
-          "the import prompt's manual lookups work")
+          "the import prompt's manual lookups work; off-by-default plugins load and import")
     return 0
 
 

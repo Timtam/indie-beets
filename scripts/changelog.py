@@ -2,7 +2,8 @@
 
 Lists the pinned versions of everything in the bundle — beets, the build Python,
 ffmpeg, fpcalc/Chromaprint, GStreamer, and the bundled plugins (incl. the
-external beetcamp/beets-filetote) — per platform, since ffmpeg/GStreamer differ.
+external beetcamp/beets-filetote/beets-vgmdb/beets-beatport4) — per platform,
+since ffmpeg/GStreamer differ.
 Sourced from the repo's single-source-of-truth pins (pyproject.toml,
 requirements-build.txt, and the constants in stage_binaries/stage_gstreamer).
 
@@ -73,7 +74,7 @@ def render(version: str, notes: str = "") -> str:
     data = _pyproject()
     beets = _beets_version(data)
     plugins = data["tool"]["indie-beets"]["bundled-plugins"]
-    ext = _req_versions("beetcamp", "beets-filetote", "beets-vgmdb")
+    ext = _req_versions("beetcamp", "beets-filetote", "beets-vgmdb", "beets-beatport4")
 
     rows = [
         ("beets", beets, beets, beets),
@@ -91,6 +92,8 @@ def render(version: str, notes: str = "") -> str:
          ext.get("beets-filetote", "?"), ext.get("beets-filetote", "?")),
         ("beets-vgmdb (VGMplug)", ext.get("beets-vgmdb", "?"),
          ext.get("beets-vgmdb", "?"), ext.get("beets-vgmdb", "?")),
+        ("beets-beatport4 (beatport4, off by default)", ext.get("beets-beatport4", "?"),
+         ext.get("beets-beatport4", "?"), ext.get("beets-beatport4", "?")),
     ]
 
     lines: list[str] = []

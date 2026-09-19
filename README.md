@@ -123,8 +123,8 @@ suffixed `-dev` since they aren't numbered releases.
 
 ## Bundled plugins
 
-These are active in the config the bundle writes to `beets-data/config.yaml` on
-first run, so they work immediately.
+Unless marked *off by default*, these are active in the config the bundle writes
+to `beets-data/config.yaml` on first run, so they work immediately.
 
 ### External / third-party plugins
 
@@ -136,6 +136,7 @@ have to install separately:
 | **bandcamp** | [`beetcamp`](https://github.com/snejus/beetcamp) | Adds Bandcamp as an autotagger metadata source. |
 | **filetote** | [`beets-filetote`](https://github.com/gtronset/beets-filetote) | Copies/moves non-music files (artwork, logs, cue sheets…) alongside your music on import. |
 | **VGMplug** | [`beets-vgmdb`](https://github.com/hsaito/beets-vgmdb) | Adds VGMdb as an autotagger metadata source (game/anime soundtracks). Its import-prompt choices (look up a VGMdb id or query) need a small compatibility patch for beets 2.14, which the bundle applies at build time. |
+| **beatport4** *(off by default)* | [`beets-beatport4`](https://github.com/Samik081/beets-beatport4) | Adds Beatport as an autotagger metadata source. Needs a Beatport account, so it is bundled but not enabled; see [Beatport](#beatport). |
 
 ### Built-in beets plugins
 
@@ -157,15 +158,10 @@ discogs:
   user_token: YOUR_TOKEN_HERE
 ```
 
-`beatport` and `bpsync` cannot work at all: Beatport retired the API they use,
-and beets has deprecated both (they are due to be removed in beets 3.0). Since
-beets 2.14, having either in your plugin list also adds about 20 seconds to
-every beets command on Windows, and possibly more on Linux and macOS, while the
-plugin tries to reach Beatport's retired login server. Leave them out.
-
 **Everything else beets ships is bundled too** — the optional dependencies for
 *all* of beets' plugin extras are included, so any built-in plugin can be turned
-on by just adding it to the `plugins` list in your config. That covers e.g.
+on by just adding it to the `plugins` list in your config (except `beatport` and
+`bpsync`; see [Beatport](#beatport)). That covers e.g.
 `web`/`aura` (HTTP interfaces), `tidal`, `mpdstats`, `sonosupdate`,
 `titlecase`, `thumbnails` and `bpd` (MPD-compatible playback server, via the
 bundled GStreamer). Importing straight from archives works too — `.zip` and
@@ -189,6 +185,46 @@ Windows/CPython 3.6 only, so every other platform would have to compile it via
 cffi) and `py7zr` for `.7z` import — beets' extractor calls `archive.infolist()`,
 which no py7zr release provides, so bundling it would only turn "unsupported
 format" into a crash, at the cost of ~10 MB of compression libraries.
+
+#### Beatport
+
+`beatport` and `bpsync` cannot work at all: Beatport retired the API they use,
+and beets has deprecated both (they are due to be removed in beets 3.0). Since
+beets 2.14, having either in your plugin list also adds about 20 seconds to
+every beets command on Windows, and possibly more on Linux and macOS, while the
+plugin tries to reach Beatport's retired login server. Leave them out.
+
+To use Beatport as a metadata source, use the bundled third-party `beatport4`
+plugin instead of `beatport`; it uses Beatport's current API. (Nothing replaces
+`bpsync`.) It is off by default because it needs a Beatport account. To turn it
+on, add `beatport4` to the `plugins` list in your config and add your Beatport
+login, which is stored there as plain text. Keep the single quotes; if your
+login itself contains a `'`, type it twice (`''`).
+
+```yaml
+beatport4:
+  username: 'YOUR_BEATPORT_USERNAME'
+  password: 'YOUR_BEATPORT_PASSWORD'
+```
+
+Whenever `beatport4` cannot log in (no login set, you are offline, Beatport is
+down or rejects the login), it stops at the start of every import, even with
+`-A` or `-q`, to ask for a token. Press Enter there to import without Beatport
+this time. Imports that cannot ask (scripted or scheduled ones) stop with an
+error and import nothing.
+
+Instead of storing your password, you can give it a token: open
+<https://api.beatport.com/v4/docs/>, press F12 to open your browser's developer
+tools, select the Network tab, and log in on the page. Click the request to
+`auth/o/token/` and copy its whole response. Paste that at the prompt as a
+single line, or save it as `beatport_token.json` in `beets-data/`, next to
+`config.yaml`. You need a new token whenever it expires.
+
+Either way, `beatport4` keeps its current token as plain text in
+`beets-data/beatport_token.json`, so remove that file along with your login
+before you pass the bundle on. Note that it logs in the way Beatport's own API
+documentation page does, not through an access Beatport offers to other apps,
+so a change on Beatport's side can break it.
 
 ### Helper binaries
 

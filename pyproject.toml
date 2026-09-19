@@ -72,6 +72,7 @@ dependencies = [
     "beetcamp==0.25.0",        # Bandcamp metadata source -> beetsplug.bandcamp
     "beets-filetote==1.3.7",   # non-music files on import -> beetsplug.filetote
     "beets-vgmdb==1.3.5",      # VGMdb metadata source -> beetsplug.VGMplug
+    "beets-beatport4==1.3.0",  # Beatport (API v4) source -> beetsplug.beatport4, off by default
     # (beetcamp and beets-vgmdb get build-time patches pinned to these exact
     # releases; see VENDOR_PATCHES in scripts/build.py before bumping them.)
     "lxml",              # parser used by beets-vgmdb (BeautifulSoup "lxml")
@@ -117,4 +118,5 @@ bundled-plugins = [
     "bandcamp",
     "filetote",
     "VGMplug",
+    "beatport4",     # Beatport as a metadata source; off by default (needs an account)
 ]

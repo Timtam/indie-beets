@@ -57,3 +57,17 @@ convert:
 # list above and put the token here:
 # discogs:
 #   user_token: YOUR_TOKEN_HERE
+
+# The `beatport4` plugin (Beatport as a metadata source) is bundled but NOT
+# enabled either, because it needs a Beatport account. Whenever it cannot log in
+# (no login set, offline, wrong password), it stops every import to ask for a
+# token (press Enter to skip Beatport), and unattended imports fail. To turn it
+# on, add `beatport4` to the plugins list above and put your Beatport login here.
+# It is stored in this file as plain text. Keep the single quotes; if your login
+# contains a ' itself, type it twice ('').
+# beatport4:
+#   username: 'YOUR_BEATPORT_USERNAME'
+#   password: 'YOUR_BEATPORT_PASSWORD'
+# Do not enable beets' own `beatport` or `bpsync`, instead of or alongside it:
+# Beatport retired the API they use, and either one adds about 20 seconds (on
+# Windows; possibly longer elsewhere) to every beets command.

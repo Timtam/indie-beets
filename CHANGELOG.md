@@ -14,6 +14,13 @@ Release versions are `<beets version>-<build>` (e.g. `2.10.0-1`); see the README
 
 ## Unreleased
 
+- **Bundle beets-beatport4 1.3.0 for Beatport, off by default.** beets' own
+  `beatport` plugin cannot work any more, because Beatport retired the API it
+  uses. `beatport4` is the third-party replacement and uses Beatport's current
+  API. It needs a Beatport account, so it ships disabled; the README and the
+  shipped config explain how to turn it on. The plugin check now also runs an
+  import with the bundled plugins that are off by default, so a `beatport4` that
+  no longer works fails the build.
 - **Bandcamp search works again (beetcamp 0.25.0).** Bandcamp now answers the
   search page that beetcamp 0.24.3 read with a bot check, so automatic Bandcamp
   search quietly found nothing; only lookups by Bandcamp URL still worked.
